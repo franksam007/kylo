@@ -29,11 +29,12 @@ import java.util.stream.Stream;
 import javax.jcr.Node;
 
 import com.thinkbiganalytics.metadata.api.feed.Feed;
-import com.thinkbiganalytics.metadata.api.security.RoleMembership;
 import com.thinkbiganalytics.metadata.modeshape.security.role.JcrAbstractRoleMembership;
+import com.thinkbiganalytics.security.role.RoleMembership;
 
 /**
- *
+ * The default role memberships for all feeds contained within a category.  These are independent 
+ * and in addition to any role memberships maintained by each individual feed.
  */
 public class JcrFeedDefaultRoleMembership extends JcrAbstractRoleMembership {
     
@@ -64,6 +65,9 @@ public class JcrFeedDefaultRoleMembership extends JcrAbstractRoleMembership {
      */
     @Override
     protected void disable(Principal principal) {
+        // Since this method is called after a principal has been removed as a member, the enableOnly() call
+        // below will only leave permissions enabled for the principal if it is a member of some other role,
+        // otherwise all permissions will be left disabled for that principal.
         this.category.getFeeds().forEach(feed -> enableOnly(principal, streamAllRoleMemberships(feed), feed.getAllowedActions()));
     }
 

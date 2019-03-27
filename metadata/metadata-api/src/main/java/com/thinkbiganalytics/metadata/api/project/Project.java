@@ -4,7 +4,7 @@ package com.thinkbiganalytics.metadata.api.project;
  * #%L
  * kylo-metadata-api
  * %%
- * Copyright (C) 2017 ThinkBig Analytics
+ * Copyright (C) 2017 - 2018 ThinkBig Analytics, a Teradata Company
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,16 +20,18 @@ package com.thinkbiganalytics.metadata.api.project;
  * #L%
  */
 
-import com.thinkbiganalytics.metadata.api.security.AccessControlled;
-
-import org.joda.time.DateTime;
+import com.thinkbiganalytics.metadata.api.Auditable;
+import com.thinkbiganalytics.metadata.api.Iconable;
+import com.thinkbiganalytics.metadata.api.SystemEntity;
+import com.thinkbiganalytics.metadata.api.Taggable;
+import com.thinkbiganalytics.security.AccessControlled;
 
 import java.io.Serializable;
 
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-public interface Project extends AccessControlled {
+public interface Project extends AccessControlled, Auditable, Iconable, SystemEntity, Taggable {
 
     Project.ID getId();
 
@@ -38,38 +40,10 @@ public interface Project extends AccessControlled {
 
     void setProjectName(@Nullable final String displayName);
 
-    @Nullable
-    String getSystemName();
-
-    void setSystemName(@Nullable final String systemName);
-
-    @Nullable
-    String getDescription();
-
-    void setDescription(@Nullable final String description);
-
     @Nonnull
     String getContainerImage();
 
     void setContainerImage(String image);
-
-    @Nullable
-    String getIcon();
-
-    void setIcon(String icon);
-
-    @Nullable
-    String getIconColor();
-
-    void setIconColor(String iconColor);
-
-    DateTime getCreatedTime();
-
-    void setCreatedTime(DateTime createdTime);
-
-    DateTime getModifiedTime();
-
-    void setModifiedTime(DateTime modifiedTime);
 
     interface ID extends Serializable {
 

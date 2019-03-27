@@ -1,5 +1,6 @@
 import {TransitionService} from "@uirouter/core/lib";
 import * as angular from "angular";
+import {moduleName} from "./module-name";
 
 export class WindowUnloadService {
 
@@ -49,7 +50,7 @@ export class WindowUnloadService {
      * Called when changing states.
      */
     shouldChangeState() {
-        if (this.text_ === null || confirm(this.text_)) {
+        if (this.text_ == null || confirm(this.text_)) {
             this.clear();
             return true;
         } else {
@@ -58,4 +59,4 @@ export class WindowUnloadService {
     }
 }
 
-angular.module(require("services/module-name")).service("WindowUnloadService", WindowUnloadService);
+angular.module(moduleName).service("WindowUnloadService", WindowUnloadService);

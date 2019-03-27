@@ -5,7 +5,7 @@
     <parent>
         <artifactId>kylo-install-inspector</artifactId>
         <groupId>com.thinkbiganalytics.kylo</groupId>
-        <version>0.9.1-SNAPSHOT</version>
+        <version>0.10.1-SNAPSHOT</version>
     </parent>
     <artifactId>kylo-install-inspector-app</artifactId>
     <packaging>war</packaging>
@@ -42,7 +42,6 @@
 
         <!-- Plugin versions -->
         <maven-clean-plugin.version>2.6.1</maven-clean-plugin.version>
-        <maven-compiler-plugin.version>3.7.0</maven-compiler-plugin.version>
         <maven-enforcer-plugin.version>3.0.0-M1</maven-enforcer-plugin.version>
         <maven-resources-plugin.version>3.0.1</maven-resources-plugin.version>
         <maven-surefire-plugin.version>2.18.1</maven-surefire-plugin.version>
@@ -187,7 +186,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>${maven-compiler-plugin.version}</version>
+                <version>${maven.compiler.plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -388,28 +387,6 @@
                                 </configuration>
                             </execution>
                         </executions>
-                    </plugin>
-                    <plugin>
-                        <groupId>pl.project13.maven</groupId>
-                        <artifactId>git-commit-id-plugin</artifactId>
-                        <version>2.2.4</version>
-                            <executions>
-                                <execution>
-                                    <goals>
-                                        <goal>revision</goal>
-                                    </goals>
-                                </execution>
-                            </executions>
-                            <configuration>
-                                <failOnNoGitDirectory>false</failOnNoGitDirectory>
-                                <generateGitPropertiesFile>true</generateGitPropertiesFile>
-                                <includeOnlyProperties>
-                                    <includeOnlyProperty>^git.commit.id.abbrev$</includeOnlyProperty>
-                                    <includeOnlyProperty>^git.commit.id.describe$</includeOnlyProperty>
-                                    <includeOnlyProperty>^git.branch$</includeOnlyProperty>
-                                </includeOnlyProperties>
-                                <useNativeGit>true</useNativeGit>
-                        </configuration>
                     </plugin>
                 </plugins>
             </build>

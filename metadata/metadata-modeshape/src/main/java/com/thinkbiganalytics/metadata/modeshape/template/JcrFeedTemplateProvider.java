@@ -46,6 +46,7 @@ import com.thinkbiganalytics.metadata.modeshape.JcrMetadataAccess;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
 import com.thinkbiganalytics.metadata.modeshape.common.EntityUtil;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.JcrObject;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedActions;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedEntityActionsProvider;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrQueryUtil;
@@ -77,12 +78,12 @@ public class JcrFeedTemplateProvider extends BaseJcrProvider<FeedManagerTemplate
     }
 
     @Override
-    public Class<? extends JcrEntity> getJcrEntityClass() {
+    public Class<? extends JcrEntity<?>> getJcrEntityClass() {
         return JcrFeedTemplate.class;
     }
 
     @Override
-    public String getNodeType(Class<? extends JcrEntity> jcrEntityType) {
+    public String getNodeType(Class<? extends JcrObject> jcrEntityType) {
         return JcrFeedTemplate.NODE_TYPE;
     }
 
@@ -107,7 +108,7 @@ public class JcrFeedTemplateProvider extends BaseJcrProvider<FeedManagerTemplate
                     .ifPresent(actions -> template.enableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser(), roles));
             } else {
                 this.actionsProvider.getAvailableActions(AllowedActions.TEMPLATE)
-                .ifPresent(actions -> template.disableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser()));
+                .ifPresent(actions -> template.disableAccessControl(JcrMetadataAccess.getActiveUser()));
             }
             
             addPostFeedChangeAction(template, ChangeType.CREATE);
@@ -187,7 +188,7 @@ public class JcrFeedTemplateProvider extends BaseJcrProvider<FeedManagerTemplate
 
     public boolean deleteTemplate(FeedManagerTemplate feedManagerTemplate) throws TemplateDeletionException {
         if (feedManagerTemplate != null && (feedManagerTemplate.getFeeds() == null || feedManagerTemplate.getFeeds().size() == 0)) {
-            feedManagerTemplate.getAllowedActions().checkPermission(TemplateAccessControl.DELETE);
+            accessController.checkPermission(feedManagerTemplate, TemplateAccessControl.DELETE);
             addPostFeedChangeAction(feedManagerTemplate, ChangeType.DELETE);
             super.delete(feedManagerTemplate);
             return true;

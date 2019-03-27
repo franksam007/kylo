@@ -35,6 +35,7 @@ import javax.ws.rs.core.Response;
 public class BaseExceptionMapper {
 
     private static final Logger log = LoggerFactory.getLogger(BaseExceptionMapper.class);
+
     @Context
     protected HttpServletRequest req;
 
@@ -51,5 +52,7 @@ public class BaseExceptionMapper {
         return Response.accepted(builder.buildError()).status(Response.Status.BAD_REQUEST).build();
     }
 
-
+    public void setReq(HttpServletRequest req) {
+        this.req = req;
+    }
 }

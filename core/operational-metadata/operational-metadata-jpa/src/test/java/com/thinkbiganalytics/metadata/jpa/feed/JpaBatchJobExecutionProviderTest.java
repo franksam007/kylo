@@ -22,20 +22,17 @@ package com.thinkbiganalytics.metadata.jpa.feed;
 
 import com.thinkbiganalytics.metadata.api.jobrepo.job.BatchJobExecution;
 import com.thinkbiganalytics.metadata.config.OperationalMetadataConfig;
-import com.thinkbiganalytics.metadata.core.feed.BaseFeed;
 import com.thinkbiganalytics.metadata.jpa.TestJpaConfiguration;
 import com.thinkbiganalytics.metadata.jpa.feed.security.FeedOpsAccessControlRepository;
-import com.thinkbiganalytics.metadata.jpa.feed.security.JpaFeedOpsAclEntry;
 import com.thinkbiganalytics.metadata.jpa.jobrepo.job.JpaBatchJobExecutionProvider;
 import com.thinkbiganalytics.security.AccessController;
 import com.thinkbiganalytics.spring.CommonsSpringConfiguration;
 import com.thinkbiganalytics.test.security.WithMockJaasUser;
 
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.domain.Page;
@@ -45,18 +42,15 @@ import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.UUID;
-import java.util.stream.StreamSupport;
-
 import javax.inject.Inject;
 
 @SuppressWarnings("SpringJavaAutowiringInspection")
 @RunWith(SpringJUnit4ClassRunner.class)
 @TestPropertySource(locations = "classpath:test-application.properties")
-@SpringApplicationConfiguration(classes = {CommonsSpringConfiguration.class,
-                                           OperationalMetadataConfig.class,
-                                           TestJpaConfiguration.class,
-                                           JpaBatchJobExecutionProviderTest.class})
+@SpringBootTest(classes = {CommonsSpringConfiguration.class,
+                           OperationalMetadataConfig.class,
+                           TestJpaConfiguration.class,
+                           JpaBatchJobExecutionProviderTest.class})
 @Transactional
 @Configuration
 public class JpaBatchJobExecutionProviderTest {

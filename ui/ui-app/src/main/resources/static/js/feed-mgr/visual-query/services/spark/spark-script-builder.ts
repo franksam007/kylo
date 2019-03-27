@@ -5,6 +5,7 @@ import {SparkConstants} from "./spark-constants";
 import {SparkExpression} from "./spark-expression";
 import {SparkExpressionType} from "./spark-expression-type";
 import {SparkQueryEngine} from "./spark-query-engine";
+import {StringUtils} from "../../../../common/utils/StringUtils";
 
 /**
  * Parses an abstract syntax tree into a Spark script.
@@ -68,6 +69,9 @@ export class SparkScriptBuilder extends ScriptBuilder<SparkExpression, string> {
      * Converts the specified script expression to a transform script.
      */
     protected prepareScript(spark: SparkExpression): string {
+        if(spark == null){
+            return "";
+        }
         if (SparkExpressionType.COLUMN.equals(spark.type) || SparkExpressionType.CONDITION_CHAIN.equals(spark.type)) {
             return ".select(" + SparkConstants.DATA_FRAME_VARIABLE + "(\"*\"), " + spark.source + ")";
         }

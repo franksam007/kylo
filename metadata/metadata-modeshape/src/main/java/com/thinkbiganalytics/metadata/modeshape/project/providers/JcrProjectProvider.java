@@ -24,11 +24,11 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Sets;
 import com.thinkbiganalytics.metadata.api.project.Project;
 import com.thinkbiganalytics.metadata.api.project.security.ProjectAccessControl;
-import com.thinkbiganalytics.metadata.api.security.RoleMembership;
 import com.thinkbiganalytics.metadata.modeshape.BaseJcrProvider;
 import com.thinkbiganalytics.metadata.modeshape.JcrMetadataAccess;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.JcrObject;
 import com.thinkbiganalytics.metadata.modeshape.project.JcrProject;
 import com.thinkbiganalytics.metadata.modeshape.project.ProjectPaths;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedActions;
@@ -38,6 +38,7 @@ import com.thinkbiganalytics.security.AccessController;
 import com.thinkbiganalytics.security.UsernamePrincipal;
 import com.thinkbiganalytics.security.action.AllowedActions;
 import com.thinkbiganalytics.security.action.AllowedEntityActionsProvider;
+import com.thinkbiganalytics.security.role.RoleMembership;
 import com.thinkbiganalytics.security.role.SecurityRole;
 import com.thinkbiganalytics.security.role.SecurityRoleProvider;
 
@@ -137,7 +138,7 @@ public class JcrProjectProvider extends BaseJcrProvider<Project, Project.ID> imp
                         .ifPresent(actions -> newProject.enableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser(), roles));
                 } else {
                     this.actionsProvider.getAvailableActions(AllowedActions.PROJECTS)
-                        .ifPresent(actions -> newProject.disableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser()));
+                        .ifPresent(actions -> newProject.disableAccessControl(JcrMetadataAccess.getActiveUser()));
                 }
 
                 return newProject;
@@ -154,12 +155,12 @@ public class JcrProjectProvider extends BaseJcrProvider<Project, Project.ID> imp
     }
 
     @Override
-    public Class<? extends JcrEntity> getJcrEntityClass() {
+    public Class<? extends JcrEntity<?>> getJcrEntityClass() {
         return JcrProject.class;
     }
 
     @Override
-    public String getNodeType(Class<? extends JcrEntity> jcrEntityType) {
+    public String getNodeType(Class<? extends JcrObject> jcrEntityType) {
         return JcrProject.NODE_TYPE;
     }
 
@@ -181,22 +182,13 @@ public class JcrProjectProvider extends BaseJcrProvider<Project, Project.ID> imp
 
         List<Project> projects = getProjects();
         return projects.stream()
-            .filter(prj ->
-                    {
-                        try {
-                            prj.getAllowedActions().checkPermission(ProjectAccessControl.EDIT_PROJECT);
-                            return true;
-                        } catch (AccessControlException ace) {
-                            return false;
-                        }
-                    }).collect(Collectors.toList());
+            .filter(prj -> accessController.hasPermission(prj, ProjectAccessControl.EDIT_PROJECT))
+            .collect(Collectors.toList());
     }
 
     @Override
     public void deleteProject(Project domain) {
-        if (accessController.isEntityAccessControlled()) {
-            domain.getAllowedActions().checkPermission(ProjectAccessControl.DELETE_PROJECT);
-        }
+        accessController.checkPermission(domain, ProjectAccessControl.DELETE_PROJECT);
 
         super.delete(domain);
     }

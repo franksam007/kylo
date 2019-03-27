@@ -1,13 +1,11 @@
 import * as angular from 'angular';
-/*import 'rxjs/add/operator/toPromise';*/
-import {Headers, RequestOptions, Response} from '@angular/http';
-//const moduleName = require('auth/module-name');
+
 import {moduleName} from "../module-name";
 
 //@Injectable()
-export class UserService {
+export default class UserService {
     headers: Headers;
-    options: RequestOptions;
+    options: any;
 
     static $inject = ['$http', 'CommonRestUrlService', 'UserGroupService']
 
@@ -101,7 +99,7 @@ export class UserService {
      * @param groupId the system name of the group
      * @returns {Array.<UserPrincipal>} the users
      */
-    getUsersByGroup(groupId: any): any[] {
+    getUsersByGroup(groupId: any): any {
         return this.UserGroupService.getUsersByGroup(groupId);
     }
 
@@ -112,10 +110,10 @@ export class UserService {
      * @returns {Promise} for when the group is saved
      */
     saveGroup(group: any): Promise<any> {
-        return this.http.post(this.CommonRestUrlService.SECURITY_GROUPS_URL, angular.toJson(group)/*,this.options*/)
-            /* .toPromise().then(this.extractData)
-             .catch(this.handleError); */
-            ;
+        return this.http.post(this.CommonRestUrlService.SECURITY_GROUPS_URL, angular.toJson(group))
+            .then(function (response: any) {
+                return response.data;
+            });
     }
 
     /**
@@ -125,11 +123,10 @@ export class UserService {
      * @returns {Promise} for when the user is saved
      */
     saveUser(user: any): Promise<any> {
-        return this.http.post(this.CommonRestUrlService.SECURITY_USERS_URL, angular.toJson(user)/*,this.options*/)
-            /* .toPromise().then(this.extractData)
-             .catch(this.handleError);  */
-            ;
-
+        return this.http.post(this.CommonRestUrlService.SECURITY_USERS_URL, angular.toJson(user))
+            .then(function (response: any) {
+                return response.data;
+            });
     }
 }
 

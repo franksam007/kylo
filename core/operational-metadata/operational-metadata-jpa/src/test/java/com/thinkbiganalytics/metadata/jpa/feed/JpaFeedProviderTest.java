@@ -28,7 +28,6 @@ import com.thinkbiganalytics.metadata.api.jobrepo.job.JobStatusCount;
 import com.thinkbiganalytics.metadata.config.OperationalMetadataConfig;
 import com.thinkbiganalytics.metadata.core.feed.BaseFeed;
 import com.thinkbiganalytics.metadata.jpa.TestJpaConfiguration;
-import com.thinkbiganalytics.metadata.jpa.feed.security.FeedOpsAccessControlRepository;
 import com.thinkbiganalytics.metadata.jpa.feed.security.JpaFeedOpsAclEntry;
 import com.thinkbiganalytics.security.AccessController;
 import com.thinkbiganalytics.security.GroupPrincipal;
@@ -41,7 +40,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.springframework.boot.test.SpringApplicationConfiguration;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
@@ -53,7 +52,7 @@ import javax.inject.Inject;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @TestPropertySource(locations = "classpath:test-application.properties")
-@SpringApplicationConfiguration(classes = {CommonsSpringConfiguration.class, OperationalMetadataConfig.class, TestJpaConfiguration.class, JpaFeedProviderTest.class})
+@SpringBootTest(classes = {CommonsSpringConfiguration.class, OperationalMetadataConfig.class, TestJpaConfiguration.class, JpaFeedProviderTest.class})
 public class JpaFeedProviderTest {
 
     @Inject

@@ -1,11 +1,12 @@
 
 import * as angular from 'angular';
 import * as _ from "underscore";
-const moduleName = require('feed-mgr/module-name');
+import {moduleName} from "../../module-name";;
 
 
 export class ApplyDomainTypeDialogController {
 
+    static readonly $inject = ["$scope", "$mdDialog", "domainType", "field"];
     /**
      * Controller for the dialog that confirms overwriting a field with domain type policies.
      * @constructor
@@ -56,4 +57,4 @@ export class ApplyDomainTypeDialogController {
     };
 
 }
-angular.module(moduleName).controller("ApplyDomainTypeDialogController", ["$scope", "$mdDialog", "domainType", "field", ApplyDomainTypeDialogController]);
+angular.module(moduleName).controller("ApplyDomainTypeDialogController", ApplyDomainTypeDialogController);

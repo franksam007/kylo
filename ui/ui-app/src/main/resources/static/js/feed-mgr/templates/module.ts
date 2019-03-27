@@ -1,21 +1,22 @@
 import * as angular from 'angular';
 import {moduleName} from "./module-name";
-import lazyLoadUtil from "../../kylo-utils/LazyLoadUtil";
+import lazyLoadUtil, {Lazy} from "../../kylo-utils/LazyLoadUtil";
 import AccessConstants from '../../constants/AccessConstants';
 import "@uirouter/angularjs";
 import "kylo-feedmgr";
 import "kylo-common";
-import {KyloServicesModule} from "../../services/services.module";
 import "ment-io";
 import "jquery";
 import "angular-drag-and-drop-lists";
+import '../../vendor/ment.io/styles.css';
+import '../../vendor/ment.io/templates.js';
 
 class ModuleFactory  {
     module: ng.IModule;
     constructor () {
         this.module = angular.module(moduleName,[]); 
         this.module.config(['$stateProvider',this.configFn.bind(this)]);
-        this.module.run(['$ocLazyLoad', this.runFn.bind(this)]);      
+        this.module.run(['$ocLazyLoad', this.runFn.bind(this)]);
     }
     configFn($stateProvider:any) {
       $stateProvider.state('registered-templates',{
@@ -24,13 +25,19 @@ class ModuleFactory  {
             },
             views: {
                 'content': {
-                    templateUrl: 'js/feed-mgr/templates/registered-templates.html',
-                    controller:'RegisteredTemplatesController',
-                    controllerAs:'vm'
+                    component : "registeredTemplatesController"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['feed-mgr/templates/RegisteredTemplatesController'])
+                // loadMyCtrl: this.lazyLoadController(['./RegisteredTemplatesController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    const onModuleLoad = () => {
+                        return import(/* webpackChunkName: "feeds.registered-templates.controller" */ './RegisteredTemplatesController')
+                            .then(Lazy.onModuleImport($ocLazyLoad));
+                    };
+
+                    return import(/* webpackChunkName: "feed-mgr.module-require" */ "../module-require").then(Lazy.onModuleImport($ocLazyLoad)).then(onModuleLoad);
+                }]
             },
             data:{
                 breadcrumbRoot:true,
@@ -46,13 +53,19 @@ class ModuleFactory  {
             url:'/register-new-template',
             views: {
                 'content': {
-                    templateUrl: 'js/feed-mgr/templates/new-template/register-new-template.html',
-                    controller:'RegisterNewTemplateController',
-                    controllerAs:'vm'
+                    component: "registerNewTemplateController"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['feed-mgr/templates/new-template/RegisterNewTemplateController'])
+                // loadMyCtrl: this.lazyLoadController(['./new-template/RegisterNewTemplateController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    const onModuleLoad = () => {
+                        return import(/* webpackChunkName: "feeds.register-new-template.controller" */ './new-template/RegisterNewTemplateController')
+                            .then(Lazy.onModuleImport($ocLazyLoad));
+                    };
+
+                    return import(/* webpackChunkName: "feed-mgr.module-require" */ "../module-require").then(Lazy.onModuleImport($ocLazyLoad)).then(onModuleLoad);
+                }]
             },
             data:{
                 breadcrumbRoot:false,
@@ -70,13 +83,21 @@ class ModuleFactory  {
             },
             views: {
                 'content': {
-                    templateUrl: 'js/feed-mgr/templates/template-stepper/register-template.html',
-                    controller:'RegisterTemplateController',
-                    controllerAs:'vm'
+                    component : "registerTemplateController"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['feed-mgr/templates/template-stepper/RegisterTemplateController','@uirouter/angularjs'])
+                // loadMyCtrl: this.lazyLoadController(['./template-stepper/RegisterTemplateController','@uirouter/angularjs'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "feeds.register-template.controller" */ './template-stepper/RegisterTemplateController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load RegisterTemplateController, " + err);
+                        });
+                }]
             },
             data:{
                 breadcrumbRoot:false,
@@ -92,10 +113,20 @@ class ModuleFactory  {
             },
             views: {
                 'content': {
-                    templateUrl: 'js/feed-mgr/templates/template-stepper/register-template/register-template-complete.html',
-                    controller:'RegisterTemplateCompleteController',
-                    controllerAs:'vm'
+                    component : "registerTemplateCompleteController"
                 }
+            },
+            resolve: {
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "feeds.register-template-complete-complete.controller" */ './template-stepper/register-template/register-template-step')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load registerTemplateCompleteController, " + err);
+                        });
+                }]
             },
             data: {
                 breadcrumbRoot: false,
@@ -103,37 +134,18 @@ class ModuleFactory  {
                 module:moduleName,
                 permissions:AccessConstants.TEMPLATES_EDIT
             }
-        }).state('import-template',{
-            url:'/import-template',
-            params: {
-            },
-            views: {
-                'content': {
-                    templateUrl:  'js/feed-mgr/templates/import-template/import-template.html',
-                    controller:'ImportTemplateController',
-                    controllerAs:'vm'
-                }
-            },
-            resolve: {
-                loadMyCtrl: this.lazyLoadController(['feed-mgr/templates/import-template/ImportTemplateController'])
-            },
-            data:{
-                breadcrumbRoot:false,
-                displayName:'Template Manager',
-                module:moduleName,
-                permissions:AccessConstants.TEMPLATES_IMPORT
-            }
         });
     }  
 
    runFn($ocLazyLoad: any){
-        $ocLazyLoad.load({name:moduleName,files:['js/vendor/ment.io/styles.css','vendor/ment.io/templates']})
-    }
-    
-    lazyLoadController(path:any){
-        return lazyLoadUtil.lazyLoadController(path,"feed-mgr/templates/module-require");
-    }
-
+       return import(/* webpackChunkName: "templates.module-require" */ "./module-require")
+           .then(mod => {
+               $ocLazyLoad.load({name:moduleName});
+           })
+           .catch(err => {
+               throw new Error("Failed to load templates.module-require, " + err);
+           });
+   }
 } 
 const module = new ModuleFactory();
 export default module;

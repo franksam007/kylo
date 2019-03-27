@@ -1,6 +1,9 @@
 import * as angular from 'angular';
 import 'pascalprecht.translate';
 import * as _ from "underscore";
+import {AccessControlService} from '../../../../services/AccessControlService';
+import { EntityAccessControlService } from '../../../shared/entity-access-control/EntityAccessControlService';
+import {FeedInputProcessorPropertiesTemplateService} from "../../../services/FeedInputProcessorPropertiesTemplateService";
 
 const moduleName = require('feed-mgr/feeds/edit-feed/module-name');
 
@@ -58,11 +61,11 @@ export class FeedNIFIController implements ng.IComponentController {
      */
     editableSection: boolean = false;
 
-    static $inject = ["$scope", "$http", "$q", "RestUrlService", "AccessControlService", "EntityAccessControlService", "FeedService", "EditFeedNifiPropertiesService", "FeedInputProcessorOptionsFactory", "FeedDetailsProcessorRenderingHelper", "BroadcastService", "FeedPropertyService", "$filter"];
+    static $inject = ["$scope", "$http", "$q", "RestUrlService", "AccessControlService", "EntityAccessControlService", "FeedService", "EditFeedNifiPropertiesService", "FeedInputProcessorPropertiesTemplateService", "FeedDetailsProcessorRenderingHelper", "BroadcastService", "FeedPropertyService", "$filter"];
 
-    constructor(private $scope: any, private $http: angular.IHttpService, private $q: angular.IQService, private RestUrlService: any, private AccessControlService: any
-        , private EntityAccessControlService: any, private FeedService: any, private EditFeedNifiPropertiesService: any
-        , private FeedInputProcessorOptionsFactory: any, private FeedDetailsProcessorRenderingHelper: any,
+    constructor(private $scope: any, private $http: angular.IHttpService, private $q: angular.IQService, private RestUrlService: any, private accessControlService: AccessControlService
+        , private entityAccessControlService: EntityAccessControlService, private FeedService: any, private EditFeedNifiPropertiesService: any
+        , private FeedInputProcessorPropertiesTemplateService: any, private FeedDetailsProcessorRenderingHelper: any,
                 private BroadcastService: any, private FeedPropertyService: any, private $filter: angular.IFilterService) {
 
         this.versions = $scope.versions;
@@ -110,7 +113,7 @@ export class FeedNIFIController implements ng.IComponentController {
 
 
         //Apply the entity access permissions
-        this.$q.when(this.AccessControlService.hasPermission(this.AccessControlService.FEEDS_EDIT, this.model, this.AccessControlService.ENTITY_ACCESS.FEED.EDIT_FEED_DETAILS)).then((access: any) => {
+         this.$q.when(this.accessControlService.hasPermission(EntityAccessControlService.FEEDS_EDIT,this.model,EntityAccessControlService.ENTITY_ACCESS.FEED.EDIT_FEED_DETAILS)).then((access:any) => {
             this.allowEdit = !this.versions && access && !this.model.view.feedDetails.disabled
         });
     }

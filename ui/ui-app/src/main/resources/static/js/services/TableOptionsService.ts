@@ -1,26 +1,18 @@
 import {ListTableView} from "./ListTableViewTypes";
-import {Common} from "../common/CommonTypes";
 import * as angular from 'angular';
 import * as _ from "underscore";
 import TableOption = ListTableView.TableOption;
 import SortOption = ListTableView.SortOption;
-import {Sort} from "@angular/material/sort";
-
-const moduleName = require('services/module-name');
+import {moduleName} from './module-name';
+import {DefaultPaginationDataService} from "./PaginationDataService";
+import {Common} from '../../lib/common/CommonTypes';
 
 export class DefaultTableOptionsService implements ListTableView.TableOptionService{
-
-
     sortOptions:Common.Map<SortOption[]> = {};
-
     static $inject = ["PaginationDataService"]
-
-    constructor(private PaginationDataService:ListTableView.PaginationDataService) {
-
-    }
+    constructor(private paginationDataService:DefaultPaginationDataService) {}
    
-    newSortOptions(key:string, labelValueMap:Common.Map<string>, defaultValue:string, defaultDirection:string) :SortOption[]{
-
+    newSortOptions(key:string, labelValueMap:Common.Map<string>, defaultValue:string, defaultDirection:string):SortOption[]{
         var sortOptions = Object.keys(labelValueMap).map((mapKey:string) => {
             var value = labelValueMap[mapKey];
             var sortOption = {label: mapKey, value: value, direction: '', reverse: false, type: 'sort'}
@@ -36,7 +28,7 @@ export class DefaultTableOptionsService implements ListTableView.TableOptionServ
         return sortOptions;
     }
 
-    newOption(label:string, type:string, isHeader:boolean, disabled:boolean, icon:string):TableOption {
+    newOption(label:string, type:string, isHeader:boolean, disabled:boolean, icon?:string):TableOption {
         if (isHeader == undefined) {
             isHeader = false;
         }
@@ -74,7 +66,7 @@ export class DefaultTableOptionsService implements ListTableView.TableOptionServ
      * @param key
      */
     initializeSortOption(key:string) {
-        var currentOption = this.PaginationDataService.sort(key);
+        var currentOption = this.paginationDataService.sort(key);
         if (currentOption) {
             this.setSortOption(key, currentOption)
         }
@@ -94,7 +86,7 @@ export class DefaultTableOptionsService implements ListTableView.TableOptionServ
             if (sortOption.reverse) {
                 val = '-' + val;
             }
-            this.PaginationDataService.sort(key, val);
+            this.paginationDataService.sort(key, val);
         }
     }
 
@@ -151,7 +143,6 @@ export class DefaultTableOptionsService implements ListTableView.TableOptionServ
     }
 
     getCurrentSort(key:string):SortOption {
-
         var sortOptions = this.sortOptions[key];
         var returnedSortOption = null;
         if (sortOptions) {
@@ -167,8 +158,5 @@ export class DefaultTableOptionsService implements ListTableView.TableOptionServ
         }
         return returnedSortOption;
     }
-    
-    
 }
-
 angular.module(moduleName).service('TableOptionsService', DefaultTableOptionsService);

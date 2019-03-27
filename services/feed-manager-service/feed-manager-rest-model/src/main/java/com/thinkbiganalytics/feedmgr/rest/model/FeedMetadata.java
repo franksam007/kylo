@@ -9,9 +9,9 @@ package com.thinkbiganalytics.feedmgr.rest.model;
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *     http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -23,14 +23,15 @@ package com.thinkbiganalytics.feedmgr.rest.model;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.thinkbiganalytics.discovery.model.DefaultTag;
 import com.thinkbiganalytics.discovery.schema.Tag;
 import com.thinkbiganalytics.feedmgr.rest.model.json.UserPropertyDeserializer;
 import com.thinkbiganalytics.feedmgr.rest.model.schema.FeedProcessingOptions;
 import com.thinkbiganalytics.feedmgr.rest.model.schema.TableSetup;
+import com.thinkbiganalytics.kylo.catalog.rest.model.DataSet;
 import com.thinkbiganalytics.metadata.FeedPropertySection;
 import com.thinkbiganalytics.metadata.FeedPropertyType;
 import com.thinkbiganalytics.metadata.MetadataField;
@@ -97,6 +98,17 @@ public class FeedMetadata extends EntityAccessControl implements UIFeed {
 
     private FeedCategory category;
 
+    @MetadataField
+    private String sourceDataSetIds;
+
+    private List<DataSet> sourceDataSets;
+
+    /**
+     * the dataset used to create the target schema
+     * this can be null
+     */
+    private DataSet sampleDataSet;
+
     @FeedPropertyType(section = FeedPropertySection.TABLE_DATA)
     private TableSetup table;
 
@@ -118,9 +130,6 @@ public class FeedMetadata extends EntityAccessControl implements UIFeed {
     @JsonProperty("reusableFeed")
     private boolean isReusableFeed;
     private FeedProcessingOptions options;
-    //deprecated
-    private Long version;
-    private String versionName;
     private RegisteredTemplate registeredTemplate;
 
     // private NifiProcessGroup nifiProcessGroup;
@@ -156,6 +165,14 @@ public class FeedMetadata extends EntityAccessControl implements UIFeed {
 
     private boolean allowIndexing = true;
     private String historyReindexingStatus = "";
+
+
+
+    /**
+     * Additional key / value pairs for used by the user interface
+     * @since 0.9.2
+     */
+    private Map<String, Object> uiState;
 
     public String getHistoryReindexingStatus() {
         return historyReindexingStatus;
@@ -322,31 +339,6 @@ public class FeedMetadata extends EntityAccessControl implements UIFeed {
 
     public void setActive(boolean active) {
         this.active = active;
-    }
-
-    public Long getVersion() {
-        if (StringUtils.isNotBlank(versionName)) {
-            try {
-                return new Long(versionName);
-            } catch (NumberFormatException e) {
-                return 0L;
-            }
-        } else {
-            return version;
-        }
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
-        setVersionName(version + "");
-    }
-
-    public String getVersionName() {
-        return this.versionName;
-    }
-
-    public void setVersionName(String versionName) {
-        this.versionName = versionName;
     }
 
     @JsonIgnore
@@ -561,6 +553,39 @@ public class FeedMetadata extends EntityAccessControl implements UIFeed {
         this.tableOption = tableOption;
     }
 
+    public String getSourceDataSetIds() {
+        return sourceDataSetIds;
+    }
+
+    public void setSourceDataSetIds(String sourceDataSetIds) {
+        this.sourceDataSetIds = sourceDataSetIds;
+    }
+
+    public List<DataSet> getSourceDataSets() {
+        return sourceDataSets;
+    }
+
+    public void setSourceDataSets(List<DataSet> sourceDataSets) {
+        this.sourceDataSetIds = sourceDataSets.stream().map(DataSet::getId).collect(Collectors.joining(","));
+        this.sourceDataSets = sourceDataSets;
+    }
+
+    public Map<String, Object> getUiState() {
+        return uiState;
+    }
+
+    public void setUiState(Map<String, Object> uiState) {
+        this.uiState = uiState;
+    }
+
+    public DataSet getSampleDataSet() {
+        return sampleDataSet;
+    }
+
+    public void setSampleDataSet(DataSet sampleDataSet) {
+        this.sampleDataSet = sampleDataSet;
+    }
+
     @Override
     public int hashCode() {
         return Objects.hash(
@@ -595,61 +620,62 @@ public class FeedMetadata extends EntityAccessControl implements UIFeed {
             usedByFeeds,
             userDatasources,
             userProperties,
-            version,
-            versionName,
             allowIndexing,
-            historyReindexingStatus
+            historyReindexingStatus,
+            uiState
         );
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (this == obj)
+        if (this == obj) {
             return true;
-        if (obj == null)
+        }
+        if (obj == null) {
             return false;
-        if (getClass() != obj.getClass())
+        }
+        if (getClass() != obj.getClass()) {
             return false;
-        
+        }
+
         FeedMetadata other = (FeedMetadata) obj;
-        
-        return 
-                Objects.equals(active, other.active) &&
-                Objects.equals(category, other.category) &&
-                Objects.equals(createDate, other.createDate) &&
-                Objects.equals(dataOwner, other.dataOwner) &&
-                Objects.equals(dataTransformation, other.dataTransformation) &&
-                Objects.equals(description, other.description) &&
-                Objects.equals(feedId, other.feedId) &&
-                Objects.equals(feedName, other.feedName) &&
-                Objects.equals(hadoopAuthorizationType, other.hadoopAuthorizationType) &&
-                Objects.equals(hadoopSecurityGroups, other.hadoopSecurityGroups) &&
-                Objects.equals(id, other.id) &&
-                Objects.equals(inputProcessorType, other.inputProcessorType) &&
-                Objects.equals(isNew, other.isNew) &&
-                Objects.equals(isReusableFeed, other.isReusableFeed) &&
-                Objects.equals(nifiProcessGroupId, other.nifiProcessGroupId) &&
-                Objects.equals(options, other.options) &&
-                Objects.equals(properties, other.properties) &&
-                Objects.equals(registeredTemplate, other.registeredTemplate) &&
-                Objects.equals(schedule, other.schedule) &&
-                Objects.equals(securityGroups, other.securityGroups) &&
-                Objects.equals(state, other.state) &&
-                Objects.equals(systemFeedName, other.systemFeedName) &&
-                Objects.equals(table, other.table) &&
-                Objects.equals(tableOption, other.tableOption) &&
-                Objects.equals(tags, other.tags) &&
-                Objects.equals(templateId, other.templateId) &&
-                Objects.equals(templateName, other.templateName) &&
-                Objects.equals(updateDate, other.updateDate) &&
-                Objects.equals(usedByFeeds, other.usedByFeeds) &&
-                Objects.equals(userDatasources, other.userDatasources) &&
-                Objects.equals(userProperties, other.userProperties) &&
-                Objects.equals(version, other.version) &&
-                Objects.equals(versionName, other.versionName) &&
-                Objects.equals(allowIndexing, other.allowIndexing) &&
-                Objects.equals(historyReindexingStatus, other.historyReindexingStatus);
+
+        return
+            Objects.equals(active, other.active) &&
+            Objects.equals(category, other.category) &&
+            Objects.equals(createDate, other.createDate) &&
+            Objects.equals(dataOwner, other.dataOwner) &&
+            Objects.equals(dataTransformation, other.dataTransformation) &&
+            Objects.equals(description, other.description) &&
+            Objects.equals(feedId, other.feedId) &&
+            Objects.equals(feedName, other.feedName) &&
+            Objects.equals(hadoopAuthorizationType, other.hadoopAuthorizationType) &&
+            Objects.equals(hadoopSecurityGroups, other.hadoopSecurityGroups) &&
+            Objects.equals(id, other.id) &&
+            Objects.equals(inputProcessorType, other.inputProcessorType) &&
+            Objects.equals(isNew, other.isNew) &&
+            Objects.equals(isReusableFeed, other.isReusableFeed) &&
+            Objects.equals(nifiProcessGroupId, other.nifiProcessGroupId) &&
+            Objects.equals(options, other.options) &&
+            Objects.equals(properties, other.properties) &&
+            Objects.equals(registeredTemplate, other.registeredTemplate) &&
+            Objects.equals(schedule, other.schedule) &&
+            Objects.equals(securityGroups, other.securityGroups) &&
+            Objects.equals(state, other.state) &&
+            Objects.equals(systemFeedName, other.systemFeedName) &&
+            Objects.equals(table, other.table) &&
+            Objects.equals(tableOption, other.tableOption) &&
+            Objects.equals(tags, other.tags) &&
+            Objects.equals(templateId, other.templateId) &&
+            Objects.equals(templateName, other.templateName) &&
+            Objects.equals(updateDate, other.updateDate) &&
+            Objects.equals(usedByFeeds, other.usedByFeeds) &&
+            Objects.equals(userDatasources, other.userDatasources) &&
+            Objects.equals(userProperties, other.userProperties) &&
+            Objects.equals(allowIndexing, other.allowIndexing) &&
+            Objects.equals(historyReindexingStatus, other.historyReindexingStatus) &&
+            Objects.equals(uiState,other.uiState);
     }
 
-    
+
 }

@@ -1,13 +1,20 @@
 import * as angular from "angular";
 import {moduleName} from "./module-name";
+import {Transition} from "@uirouter/core";
 
 export class controller implements ng.IComponentController{
 
-    constructor(private $transition$: any){}
+    filter: string
+    slaId: string
+    static readonly $inject = ['$transition$']
+    constructor(private $transition$: Transition){
+        this.filter = this.$transition$.params().filter;
+        this.slaId = this.$transition$.params().slaId;
+    }
 
-    filter: any = this.$transition$.params().filter;
-    slaId: any = this.$transition$.params().slaId;
+
+
 }
 
-
-angular.module(moduleName).controller('ServiceLevelAssessmentsInitController',['$transition$',controller]);
+const module = angular.module(moduleName).controller("serviceLevelAssessmentsInitController", controller);
+export default module;

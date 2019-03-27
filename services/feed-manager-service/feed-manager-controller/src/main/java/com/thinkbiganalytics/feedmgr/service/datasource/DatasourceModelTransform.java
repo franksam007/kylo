@@ -21,6 +21,8 @@ package com.thinkbiganalytics.feedmgr.service.datasource;
  */
 
 import com.thinkbiganalytics.feedmgr.service.security.SecurityService;
+import com.thinkbiganalytics.metadata.api.catalog.DataSet;
+import com.thinkbiganalytics.metadata.api.catalog.DataSetSparkParameters;
 import com.thinkbiganalytics.metadata.api.datasource.DatasourceDetails;
 import com.thinkbiganalytics.metadata.api.datasource.DatasourceProvider;
 import com.thinkbiganalytics.metadata.api.datasource.JdbcDatasourceDetails;
@@ -34,6 +36,7 @@ import com.thinkbiganalytics.nifi.rest.client.NiFiControllerServicesRestClient;
 import com.thinkbiganalytics.nifi.rest.client.NiFiRestClient;
 import com.thinkbiganalytics.nifi.rest.client.NifiClientRuntimeException;
 import com.thinkbiganalytics.nifi.rest.client.NifiComponentNotFoundException;
+import com.thinkbiganalytics.security.AccessController;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.nifi.web.api.dto.ControllerServiceDTO;
@@ -41,8 +44,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.crypto.encrypt.TextEncryptor;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import javax.annotation.Nonnull;
 
@@ -52,6 +57,20 @@ import javax.annotation.Nonnull;
 public class DatasourceModelTransform {
 
     private static final Logger log = LoggerFactory.getLogger(DatasourceModelTransform.class);
+    
+    private static final Map<String, String> DATA_SET_SRC_TYPES;
+    static {
+        Map<String, String> map = new HashMap<>();
+        map.put("jdbc", "DatabaseDatasource");
+        map.put("hive", "HiveDatasource");
+        map.put("file-upload", "DirectoryDatasource");
+        map.put("hdfs", "DirectoryDatasource");
+        map.put("local-file-system", "DirectoryDatasource");
+        map.put("amazon-s3", "S3Datasource");
+        map.put("azure-data-lake", "DatabaseDatasource");
+        map.put("azure-storage", "DirectoryDatasource");
+        DATA_SET_SRC_TYPES = Collections.unmodifiableMap(map);
+    }
 
     /**
      * Level of detail to include when transforming objects.
@@ -101,6 +120,12 @@ public class DatasourceModelTransform {
      */
     @Nonnull
     private final SecurityService securityService;
+    
+    /**
+     * Security service
+     */
+    @Nonnull
+    private final AccessController accessController;
 
     /**
      * Constructs a {@code DatasourceModelTransform}.
@@ -110,12 +135,66 @@ public class DatasourceModelTransform {
      * @param nifiRestClient     the NiFi REST client
      * @param securityService    the security service
      */
-    public DatasourceModelTransform(@Nonnull final DatasourceProvider datasourceProvider, @Nonnull final TextEncryptor encryptor, @Nonnull final NiFiRestClient nifiRestClient,
-                                    @Nonnull final SecurityService securityService) {
+    public DatasourceModelTransform(@Nonnull final DatasourceProvider datasourceProvider, 
+                                    @Nonnull final TextEncryptor encryptor, 
+                                    @Nonnull final NiFiRestClient nifiRestClient,
+                                    @Nonnull final SecurityService securityService,
+                                    @Nonnull final AccessController accessController) {
         this.datasourceProvider = datasourceProvider;
         this.encryptor = encryptor;
         this.nifiRestClient = nifiRestClient;
         this.securityService = securityService;
+        this.accessController = accessController;
+    }
+
+    public com.thinkbiganalytics.metadata.api.datasource.Datasource findDomainDatasource(DataSet domainDataSet){
+        DataSetSparkParameters params = domainDataSet.getEffectiveSparkParameters();
+        String derivedDatasourceType = getDerivedDataSourceType(domainDataSet);
+        String derivedDataSourceName = domainDataSet.getTitle();
+        if(StringUtils.isBlank(derivedDataSourceName)  && params.getPaths() != null && !params.getPaths().isEmpty()){
+            derivedDataSourceName = params.getPaths().stream().collect(Collectors.joining(","));
+        }
+        DerivedDatasource ds = null;
+        com.thinkbiganalytics.metadata.api.datasource.DerivedDatasource derivedDatasource = datasourceProvider.findDerivedDatasource(derivedDatasourceType,derivedDataSourceName);
+        return derivedDatasource;
+    }
+    
+    /**
+     * Transforms the specified domain data set to an equivalent legacy REST Datasource.
+     *
+     * @param domain the domain data set object
+     * @param level  the level of detail
+     * @return the REST object
+     * @throws IllegalArgumentException if the domain object cannot be converted
+     */
+    public Datasource toDatasource(@Nonnull final DataSet domainDataSet, @Nonnull final Level level) {
+        String derivedDatasourceType = getDerivedDataSourceType(domainDataSet);
+        String derivedDataSourceName = domainDataSet.getTitle();
+        com.thinkbiganalytics.metadata.api.datasource.Datasource derivedDatasource =  findDomainDatasource(domainDataSet);
+        DerivedDatasource ds = null;
+        if(derivedDatasource != null) {
+            ds = (DerivedDatasource)toDatasource(derivedDatasource,Level.BASIC);
+        }else {
+            ds = new DerivedDatasource();
+            ds.setId(domainDataSet.getId().toString());
+            ds.setName(derivedDataSourceName);
+            ds.setDatasourceType(derivedDatasourceType);
+        }
+        return ds;
+    }
+
+    private String getDerivedDataSourceType(DataSet domainDataSet){
+        DataSetSparkParameters params = domainDataSet.getEffectiveSparkParameters();
+        String datasourceType = params.getFormat();
+        String derivedDatasourceType = "DatabaseDatasource";
+        if(DATA_SET_SRC_TYPES.containsKey(datasourceType)){
+            derivedDatasourceType= DATA_SET_SRC_TYPES.get(datasourceType);
+        }
+        else if( domainDataSet.getDataSource().getConnector() != null){
+            datasourceType = domainDataSet.getDataSource().getConnector().getPluginId();
+            derivedDatasourceType= DATA_SET_SRC_TYPES.getOrDefault(datasourceType, derivedDatasourceType);
+        }
+        return derivedDatasourceType;
     }
 
     /**
@@ -376,7 +455,7 @@ public class DatasourceModelTransform {
         domain.setIconColor(ds.getIconColor());
 
         // Update access control
-        if (domain.getAllowedActions().hasPermission(DatasourceAccessControl.CHANGE_PERMS)) {
+        if (accessController.hasPermission(domain, DatasourceAccessControl.CHANGE_PERMS)) {
             ds.toRoleMembershipChangeList().forEach(roleMembershipChange -> securityService.changeDatasourceRoleMemberships(ds.getId(), roleMembershipChange));
         }
     }

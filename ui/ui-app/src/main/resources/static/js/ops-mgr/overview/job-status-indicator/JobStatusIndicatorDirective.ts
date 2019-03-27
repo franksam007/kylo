@@ -1,90 +1,98 @@
 import * as angular from "angular";
 import {moduleName} from "../module-name";
 import * as _ from "underscore";
+import HttpService from "../../../services/HttpService";
+import {OpsManagerChartJobService} from "../../services/ops-manager-chart-job.service";
 declare const d3: any;
 
 export default class controller implements ng.IComponentController{
-refreshInterval: any;
-dataLoaded: any;
-chartApi: any;
-chartConfig: any;
-running: any;
-failed: any;
-chartData: any[];
-runningCounts: any[];
-maxDatapoints: number;
+refreshInterval: any = null;
+dataLoaded: boolean = false;
+chartApi: any ={};
+chartConfig: any = {};
+running: number = 0;
+failed: number = 0;
+chartData: any[] = [];
+runningCounts: any[] = [];
+maxDatapoints: number = 20;
 chartOptions: any;
-refreshIntervalTime: any;
+refreshIntervalTime: number=1000;
 
-constructor(private $scope: any,
-        private $element: any,
+static readonly $inject = ["$scope","$element","$http","$q","$interval","StateService",
+                            "OpsManagerJobService","OpsManagerDashboardService",
+                            "HttpService","OpsManagerChartJobService","BroadcastService"];
+$onInit() {
+    this.ngOnInit();
+}
+
+ngOnInit() {
+
+    this.chartOptions =  {
+        chart: {
+            type: 'lineChart',
+            margin : {
+                top: 5,
+                right: 5,
+                bottom:10,
+                left: 20
+            },
+            x: (d: any)=>{return d[0];},
+            y: (d: any)=>{return d[1];},
+            useVoronoi: false,
+            clipEdge: false,
+            duration: 0,
+            height:146,
+            useInteractiveGuideline: true,
+            xAxis: {
+                axisLabel: 'Time',
+                showMaxMin: false,
+                tickFormat: (d: any)=> {
+                    return d3.time.format('%X')(new Date(d))
+                }
+            },
+            yAxis: {
+                axisLabel:'',
+                "axisLabelDistance": -10,
+                showMaxMin:false,
+                tickSubdivide:0,
+                ticks:1
+            },
+            yDomain:[0,1],
+            showLegend:false,
+            showXAxis:false,
+            showYAxis:true,
+            lines: {
+                dispatch: {
+                    'elementClick':(e: any)=>{
+                        this.chartClick();
+                    }
+                }
+            },
+            dispatch: {
+
+            }
+        }
+    };
+if(this.refreshIntervalTime == undefined) {
+    this.refreshIntervalTime = 1000;
+}
+    this.refresh();
+    this.setRefreshInterval();
+
+}
+
+constructor(private $scope: IScope,
+        private $element: JQuery,
         private $http: any,
-        private $q: any,
-        private $interval: any,
+        private $q: angular.IQService,
+        private $interval: angular.IIntervalService,
         private StateService: any,
         private OpsManagerJobService: any,
         private OpsManagerDashboardService: any,
-        private HttpService: any,
-        private ChartJobStatusService: any,
+        private httpService: HttpService,
+        private opsManagerChartJobService: OpsManagerChartJobService,
         private BroadcastService: any){
-        this.refreshInterval = null;
-        this.dataLoaded = false;
-        this.chartApi = {};
-        this.chartConfig = {}
-        this.running = 0;
-        this.failed = 0;
-        this.chartData = [];
-        this.runningCounts = [];
-        var maxDatapoints = 20;
-        this.chartOptions =  {
-            chart: {
-                type: 'lineChart',
-                margin : {
-                    top: 5,
-                    right: 5,
-                    bottom:10,
-                    left: 20
-                },
-                x: (d: any)=>{return d[0];},
-                y: (d: any)=>{return d[1];},
-                useVoronoi: false,
-                clipEdge: false,
-                duration: 0,
-                height:136,
-                useInteractiveGuideline: true,
-                xAxis: {
-                    axisLabel: 'Time',
-                    showMaxMin: false,
-                    tickFormat: (d: any)=> {
-                        return d3.time.format('%X')(new Date(d))
-                    }
-                },
-                yAxis: {
-                    axisLabel:'',
-                    "axisLabelDistance": -10,
-                    showMaxMin:false,
-                    tickSubdivide:0,
-                    ticks:1
-                },
-                yDomain:[0,1],
-                showLegend:false,
-                showXAxis:false,
-                showYAxis:true,
-                lines: {
-                    dispatch: {
-                        'elementClick':(e: any)=>{
-                            this.chartClick();
-                        }
-                    }
-                },
-                dispatch: {
-
-                }
-            }
-        };
-
-         this.init();
-
+        
         $scope.$on('$destroy', ()=>{
             this.clearRefreshInterval();
         });
@@ -194,7 +202,7 @@ constructor(private $scope: any,
                 this.chartData[0].values.push([data.date, data.count]);
             }
             else {
-               var initialChartData = this.ChartJobStatusService.toChartData([data]);
+               var initialChartData = this.opsManagerChartJobService.toChartData([data]);
                 initialChartData[0].key = 'Running';
                 this.chartData = initialChartData;
             }
@@ -216,7 +224,7 @@ constructor(private $scope: any,
             }
         }
         createChartData=(responseData: any)=>{
-            this.chartData = this.ChartJobStatusService.toChartData(responseData);
+            this.chartData = this.opsManagerChartJobService.toChartData(responseData);
             var max = d3.max(this.runningCounts, (d: any)=>{
                 return d.count; } );
             if(max == undefined || max ==0) {
@@ -227,6 +235,9 @@ constructor(private $scope: any,
             }
             this.chartOptions.chart.yDomain = [0, max];
             this.chartOptions.chart.yAxis.ticks =max;
+            this.chartOptions.chart.color = (d: any)=>{
+                return "#00B2B1";
+            };
           //  this.chartApi.update();
         }
 
@@ -245,36 +256,14 @@ constructor(private $scope: any,
             }
         }
 
-        init=()=>{
-          this.refresh();
-          this.setRefreshInterval();
-        }
 }
 
- angular.module(moduleName)
-.controller('JobStatusIndicatorController', 
-                                        ["$scope","$element","$http","$q","$interval","StateService",
-                                        "OpsManagerJobService","OpsManagerDashboardService",
-                                        "HttpService","ChartJobStatusService","BroadcastService",controller]);
-
-
-    angular.module(moduleName)
-        .directive('tbaJobStatusIndicator', [()=>
-         {
-             return {
-            restrict: "EA",
-            scope:true,
-            controllerAs:'vm',
-            bindToController: {
-                panelTitle: "@",
-                refreshIntervalTime:"=?"
-            },
-            templateUrl: 'js/ops-mgr/overview/job-status-indicator/job-status-indicator-template.html',
-            controller: "JobStatusIndicatorController",
-            link: function($scope: any, element: any, attrs: any) {
-                        $scope.$on('$destroy', function() {
-                            });
-            } //DOM manipulation\}
-        }
-        
-         }]);
+ angular.module(moduleName).component('tbaJobStatusIndicator', {
+    controller: controller,
+    bindings: {
+        panelTitle: "@",
+        refreshIntervalTime:"=?"
+    },
+    controllerAs: "vm",
+    templateUrl: "./job-status-indicator-template.html"
+});

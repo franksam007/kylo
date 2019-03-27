@@ -73,6 +73,7 @@ chown -R $INSTALL_USER:$INSTALL_GROUP $INSTALL_HOME
 
 pgrepMarkerKyloUi=kylo-ui-pgrep-marker
 pgrepMarkerKyloServices=kylo-services-pgrep-marker
+pgrepMarkerKyloInstallInspector=kylo-install-inspector-pgrep-marker
 rpmLogDir=$LOG_DIRECTORY_LOCATION
 
 echo "    - Install kylo-ui application"
@@ -213,6 +214,9 @@ fi
 echo "   - Added service 'kylo-ui'"
 echo "    - Completed kylo-ui install"
 
+
+
+
 echo "    - Install kylo-services application"
 
 sed -i "s/security\.jwt\.key=<insert-256-bit-secret-key-here>/security\.jwt\.key=${jwtkey}/" $INSTALL_HOME/kylo-services/conf/application.properties
@@ -223,6 +227,11 @@ cat << EOF > $INSTALL_HOME/kylo-services/bin/run-kylo-services.sh
 export JAVA_HOME=/opt/java/current
 export PATH=\$JAVA_HOME/bin:\$PATH
 export KYLO_SERVICES_OPTS=-Xmx768m
+export HADOOP_CONF_DIR=\${HADOOP_CONF_DIR:-/etc/hadoop/conf}
+if ! [ -f \$HADOOP_CONF_DIR/core-site.xml ]; then
+  >&2 echo "Unable to locate core-site.xml.  Please define HADOOP_CONF_DIR for kylo service account"
+  exit 1
+fi
 export KYLO_SPRING_PROFILES_OPTS=
 [ -f $INSTALL_HOME/encrypt.key ] && export ENCRYPT_KEY="\$(cat $INSTALL_HOME/encrypt.key)"
 PROFILES=\$(grep ^spring.profiles. $INSTALL_HOME/kylo-services/conf/application.properties)
@@ -236,13 +245,19 @@ then
 fi
 echo "using NiFi profile: \${KYLO_NIFI_PROFILE}"
 
-java \$KYLO_SERVICES_OPTS \$KYLO_SPRING_PROFILES_OPTS -cp $INSTALL_HOME/kylo-services/conf:$INSTALL_HOME/kylo-services/lib/*:$INSTALL_HOME/kylo-services/lib/\${KYLO_NIFI_PROFILE}/*:$INSTALL_HOME/kylo-services/plugin/* com.thinkbiganalytics.server.KyloServerApplication --pgrep-marker=$pgrepMarkerKyloServices > $LOG_DIRECTORY_LOCATION/kylo-services/std.out 2>$LOG_DIRECTORY_LOCATION/kylo-services/std.err &
+java -Dorg.springframework.boot.logging.LoggingSystem=none \$KYLO_SERVICES_OPTS \$KYLO_SPRING_PROFILES_OPTS -cp $INSTALL_HOME/kylo-services/conf:\$HADOOP_CONF_DIR:$INSTALL_HOME/kylo-services/lib/*:$INSTALL_HOME/kylo-services/lib/\${KYLO_NIFI_PROFILE}/*:$INSTALL_HOME/kylo-services/plugin/* com.thinkbiganalytics.server.KyloServerApplication --pgrep-marker=$pgrepMarkerKyloServices > $LOG_DIRECTORY_LOCATION/kylo-services/std.out 2>$LOG_DIRECTORY_LOCATION/kylo-services/std.err &
 EOF
 cat << EOF > $INSTALL_HOME/kylo-services/bin/run-kylo-services-with-debug.sh
 #!/bin/bash
 export JAVA_HOME=/opt/java/current
 export PATH=\$JAVA_HOME/bin:\$PATH
 export KYLO_SERVICES_OPTS=-Xmx768m
+export HADOOP_CONF_DIR=\${HADOOP_CONF_DIR:-/etc/hadoop/conf}
+if ! [ -f \$HADOOP_CONF_DIR/core-site.xml ]; then
+  >&2 echo "Unable to locate core-site.xml.  Please define HADOOP_CONF_DIR for kylo service account"
+  exit 1
+fi
+
 [ -f $INSTALL_HOME/encrypt.key ] && export ENCRYPT_KEY="\$(cat $INSTALL_HOME/encrypt.key)"
 JAVA_DEBUG_OPTS=-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=9998
 PROFILES=\$(grep ^spring.profiles. $INSTALL_HOME/kylo-services/conf/application.properties)
@@ -256,7 +271,7 @@ then
  KYLO_NIFI_PROFILE="nifi-v1.2"
 fi
 echo "using NiFi profile: \${KYLO_NIFI_PROFILE}"
-java \$KYLO_SERVICES_OPTS \$JAVA_DEBUG_OPTS -cp $INSTALL_HOME/kylo-services/conf:$INSTALL_HOME/kylo-services/lib/*:$INSTALL_HOME/kylo-services/lib/\${KYLO_NIFI_PROFILE}/*:$INSTALL_HOME/kylo-services/plugin/* com.thinkbiganalytics.server.KyloServerApplication --pgrep-marker=$pgrepMarkerKyloServices > $LOG_DIRECTORY_LOCATION/kylo-services/std.out 2>$LOG_DIRECTORY_LOCATION/kylo-services/std.err &
+java -Dorg.springframework.boot.logging.LoggingSystem=none \$KYLO_SERVICES_OPTS \$JAVA_DEBUG_OPTS -cp $INSTALL_HOME/kylo-services/conf:\$HADOOP_CONF_DIR:$INSTALL_HOME/kylo-services/lib/*:$INSTALL_HOME/kylo-services/lib/\${KYLO_NIFI_PROFILE}/*:$INSTALL_HOME/kylo-services/plugin/* com.thinkbiganalytics.server.KyloServerApplication --pgrep-marker=$pgrepMarkerKyloServices > $LOG_DIRECTORY_LOCATION/kylo-services/std.out 2>$LOG_DIRECTORY_LOCATION/kylo-services/std.err &
 EOF
 chmod +x $INSTALL_HOME/kylo-services/bin/run-kylo-services.sh
 chmod +x $INSTALL_HOME/kylo-services/bin/run-kylo-services-with-debug.sh
@@ -368,6 +383,9 @@ echo "   - Added service 'kylo-services'"
 
 echo "    - Completed kylo-services install"
 
+
+echo "    - Install kylo-spark-shell application"
+
 cat << EOF > $INSTALL_HOME/kylo-services/bin/run-kylo-spark-shell.sh
 #!/bin/bash
 
@@ -386,7 +404,7 @@ if [[ -n \$SPARK_CONF_DIR ]]; then
 		fi
 	fi
 fi
-spark-submit --master local --conf spark.driver.userClassPathFirst=true --class com.thinkbiganalytics.spark.SparkShellApp --driver-class-path \$KYLO_DRIVER_CLASS_PATH --driver-java-options -Dlog4j.configuration=log4j-spark.properties $INSTALL_HOME/kylo-services/lib/app/kylo-spark-shell-client-\${SPARK_PROFILE}-*.jar --pgrep-marker=kylo-spark-shell-pgrep-marker
+spark-submit --master local --conf spark.driver.userClassPathFirst=true --class com.thinkbiganalytics.spark.SparkShellApp --driver-class-path \$KYLO_DRIVER_CLASS_PATH --driver-java-options -Dlog4j.configuration=log4j-spark.properties $INSTALL_HOME/kylo-services/plugin/app/kylo-spark-shell-client-\${SPARK_PROFILE}-*.jar --pgrep-marker=kylo-spark-shell-pgrep-marker
 EOF
 cat << EOF > $INSTALL_HOME/kylo-services/bin/run-kylo-spark-shell-with-debug.sh
 #!/bin/bash
@@ -407,10 +425,116 @@ if [[ -n \$SPARK_CONF_DIR ]]; then
 		fi
 	fi
 fi
-spark-submit --master local --conf spark.driver.userClassPathFirst=true --class com.thinkbiganalytics.spark.SparkShellApp --driver-class-path \$KYLO_DRIVER_CLASS_PATH --driver-java-options "-Dlog4j.configuration=log4j-spark.properties \$JAVA_DEBUG_OPTS" $INSTALL_HOME/kylo-services/lib/app/kylo-spark-shell-client-\${SPARK_PROFILE}-*.jar --pgrep-marker=kylo-spark-shell-pgrep-marker
+spark-submit --master local --conf spark.driver.userClassPathFirst=true --class com.thinkbiganalytics.spark.SparkShellApp --driver-class-path \$KYLO_DRIVER_CLASS_PATH --driver-java-options "-Dlog4j.configuration=log4j-spark.properties \$JAVA_DEBUG_OPTS" $INSTALL_HOME/kylo-services/plugin/app/kylo-spark-shell-client-\${SPARK_PROFILE}-*.jar --pgrep-marker=kylo-spark-shell-pgrep-marker
 EOF
 chmod +x $INSTALL_HOME/kylo-services/bin/run-kylo-spark-shell.sh
 chmod +x $INSTALL_HOME/kylo-services/bin/run-kylo-spark-shell-with-debug.sh
+
+echo "    - Completed kylo-services install"
+
+
+
+
+echo "    - Install kylo-install-inspector application"
+cat << EOF > $INSTALL_HOME/kylo-install-inspector/bin/run-kylo-install-inspector.sh
+#!/bin/bash
+export JAVA_HOME=/opt/java/current
+export PATH=\$JAVA_HOME/bin:\$PATH
+
+java -cp java -jar ${INSTALL_HOME}/kylo-install-inspector/lib/* --inspections.path=${INSTALL_HOME}/kylo-install-inspector/inspections --pgrep-marker=$pgrepMarkerKyloInstallInspector > ${LOG_DIRECTORY_LOCATION}/kylo-install-inspector/std.out 2>${LOG_DIRECTORY_LOCATION}/kylo-install-inspector/std.err &
+EOF
+chmod +x ${INSTALL_HOME}/kylo-install-inspector/bin/run-kylo-install-inspector.sh
+
+# header of the service file depends on system used
+if [ "$linux_type" == "chkonfig" ]; then
+cat << EOF > /etc/init.d/kylo-install-inspector
+#! /bin/sh
+# chkconfig: - 98 98
+# description: kylo-install-inspector
+# processname: kylo-install-inspector
+EOF
+elif [ "$linux_type" == "update-rc.d" ]; then
+cat << EOF > /etc/init.d/kylo-install-inspector
+#! /bin/sh
+### BEGIN INIT INFO
+# Provides:          kylo-install-inspector
+# Required-Start:    $local_fs $network $named $time $syslog
+# Required-Stop:     $local_fs $network $named $time $syslog
+# Default-Start:
+# Default-Stop:      0 1 2 3 4 5 6
+# Description:       kylo-install-inspector
+### END INIT INFO
+EOF
+fi
+
+cat << EOF >> /etc/init.d/kylo-install-inspector
+RUN_AS_USER=$INSTALL_USER
+
+start() {
+    if pgrep -f $pgrepMarkerKyloInstallInspector >/dev/null 2>&1
+      then
+        echo Already running.
+      else
+        echo Starting kylo-install-inspector ...
+        su - \$RUN_AS_USER -c "$INSTALL_HOME/kylo-install-inspector/bin/run-kylo-install-inspector.sh"
+    fi
+}
+
+stop() {
+    if pgrep -f $pgrepMarkerKyloInstallInspector >/dev/null 2>&1
+      then
+        echo Stopping kylo-install-inspector ...
+        pkill -f $pgrepMarkerKyloInstallInspector
+      else
+        echo Already stopped.
+    fi
+}
+
+status() {
+    if pgrep -f $pgrepMarkerKyloInstallInspector >/dev/null 2>&1
+      then
+          echo Running.  Here are the related processes:
+          pgrep -lf $pgrepMarkerKyloInstallInspector
+      else
+        echo Stopped.
+    fi
+}
+
+case "\$1" in
+    start)
+        start
+    ;;
+    stop)
+        stop
+    ;;
+    status)
+        status
+    ;;
+    restart)
+       echo "Restarting kylo-install-inspector"
+       stop
+       sleep 2
+       start
+       echo "kylo-install-inspector started"
+    ;;
+esac
+exit 0
+EOF
+chmod +x /etc/init.d/kylo-install-inspector
+echo "   - Created kylo-install-inspector script '/etc/init.d/kylo-install-inspector'"
+
+mkdir -p ${rpmLogDir}/kylo-install-inspector/
+echo "   - Created Log folder $rpmLogDir/kylo-install-inspector/"
+
+if [ "$linux_type" == "chkonfig" ]; then
+    chkconfig --add kylo-install-inspector
+    chkconfig kylo-install-inspector off
+elif [ "$linux_type" == "update-rc.d" ]; then
+    update-rc.d kylo-install-inspector disable
+fi
+echo "   - Added service 'kylo-install-inspector'"
+echo "    - Completed kylo-install-inspector install"
+
 
 {
 echo "    - Create an RPM Removal script at: $INSTALL_HOME/remove-kylo.sh"

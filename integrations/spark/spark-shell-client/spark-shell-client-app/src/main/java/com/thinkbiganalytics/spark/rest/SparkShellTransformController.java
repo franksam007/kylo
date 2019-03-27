@@ -20,6 +20,9 @@ package com.thinkbiganalytics.spark.rest;
  * #L%
  */
 
+import com.thinkbiganalytics.kylo.catalog.api.KyloCatalogClient;
+import com.thinkbiganalytics.kylo.catalog.spark.DataSourceResourceLoader;
+import com.thinkbiganalytics.spark.rest.model.KyloCatalogReadRequest;
 import com.thinkbiganalytics.spark.rest.model.SaveRequest;
 import com.thinkbiganalytics.spark.rest.model.SaveResponse;
 import com.thinkbiganalytics.spark.rest.model.TransformRequest;
@@ -93,6 +96,19 @@ public class SparkShellTransformController extends AbstractTransformController {
         }
     }
 
+    @POST
+    @Path("/kylo-catalog")
+    @Consumes(MediaType.APPLICATION_JSON)
+    @Produces(MediaType.APPLICATION_JSON)
+    public Response kyloCatalogTransform(KyloCatalogReadRequest request){
+        try {
+            TransformResponse response = this.transformService.kyloReaderResponse(request);
+            return Response.ok(response).build();
+        } catch (final ScriptException e) {
+            return error(Response.Status.INTERNAL_SERVER_ERROR, e);
+        }
+    }
+
     /**
      * Saves the results of a Spark script.
      */
@@ -109,7 +125,7 @@ public class SparkShellTransformController extends AbstractTransformController {
     public Response save(@Nonnull @PathParam("table") final String id,
                          @ApiParam(value = "The request indicates the destination for saving the transformation. The format is required.", required = true) @Nullable final SaveRequest request) {
         // Validate request
-        if (request == null || (request.getJdbc() == null && request.getFormat() == null)) {
+        if (request == null || (request.getJdbc() == null && request.getFormat() == null && request.getCatalogDatasource() == null)) {
             return error(Response.Status.BAD_REQUEST, "save.missingFormat");
         }
 

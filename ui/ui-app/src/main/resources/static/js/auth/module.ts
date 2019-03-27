@@ -1,33 +1,41 @@
 import * as angular from 'angular';
 import AccessConstants from "../constants/AccessConstants";
 import lazyLoadUtil from "../kylo-utils/LazyLoadUtil";
-//const lazyLoadUtil = require('../kylo-utils/LazyLoadUtil');
 import UserDetailsController from "./users/user-details/UserDetailsController";
 import GroupDetailsController from "./groups/group-details/GroupDetailsController";
-import * as moduleRequire  from "./module-require";
 import {moduleName} from "./module-name";
-//const moduleName = require('auth/module-name');
+import {StateProvider} from "@uirouter/angularjs";
 
 class ModuleFactory  {
     module: ng.IModule;
     constructor () {
         this.module = angular.module(moduleName,[]);
         this.module.config(['$stateProvider',this.configFn.bind(this)]);
+        this.module.run(['$ocLazyLoad', this.runFn.bind(this)]);
     }
-    configFn($stateProvider:any) {
-            
+    configFn($stateProvider:StateProvider) {
         $stateProvider.state(AccessConstants.UI_STATES.USERS.state, {
             url: '/users',
             params: {},
             views: {
                 'content': {
-                    templateUrl: 'js/auth/users/users-table.html',
-                    controller: "UsersTableController",
-                    controllerAs: "vm"
+                   // templateUrl: './users/users-table.html',
+                    component: "usersTableController",
+                   // controllerAs: "vm"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['auth/users/UsersTableController'])
+                // loadMyCtrl: this.lazyLoadController(['auth/users/UsersTableController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "users.table.controller" */ './users/UsersTableController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load UsersTableController, " + err);
+                        });
+                }]
             },
             data: {
                 breadcrumbRoot: true,
@@ -43,13 +51,23 @@ class ModuleFactory  {
             },
             views: {
                 'content': {
-                    templateUrl: 'js/auth/users/user-details/user-details.html',
-                    controller: "UserDetailsController",
-                    controllerAs: "vm"
+                   // templateUrl: './users/user-details/user-details.html',
+                    component: "userDetailsController",
+                   // controllerAs: "vm"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['auth/users/user-details/UserDetailsController'])
+                // loadMyCtrl: this.lazyLoadController(['auth/users/user-details/UserDetailsController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "user.details.controller" */ './users/user-details/UserDetailsController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load UserDetailsController, " + err);
+                        });
+                }]
             },
             data: {
                 breadcrumbRoot: false,
@@ -57,21 +75,29 @@ class ModuleFactory  {
                 module:moduleName,
                 permissions:AccessConstants.UI_STATES.USERS_DETAILS.permissions
             }
-
-        
         });
         $stateProvider.state(AccessConstants.UI_STATES.GROUPS.state, {
             url: "/groups",
             params: {},
             views: {
                 'content': {
-                    templateUrl: 'js/auth/groups/groups-table.html',
-                    controller: "GroupsTableController",
-                    controllerAs: "vm"
+                  //  templateUrl: './groups/groups-table.html',
+                    component: "groupsTableController",
+                   // controllerAs: "vm"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['auth/groups/GroupsTableController'])
+                // loadMyCtrl: this.lazyLoadController(['auth/groups/GroupsTableController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "groups.table.controller" */ './groups/GroupsTableController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load GroupsTableController, " + err);
+                        });
+                }]
             },
             data: {
                 breadcrumbRoot: true,
@@ -87,13 +113,23 @@ class ModuleFactory  {
             },
             views: {
                 'content': {
-                    templateUrl: 'js/auth/groups/group-details/group-details.html',
-                    controller: "GroupDetailsController",
-                    controllerAs: "vm"
+                  //  templateUrl: './groups/group-details/group-details.html',
+                    component: "groupDetailsController",
+                   // controllerAs: "vm"
                 }
             },
             resolve: {
-                loadMyCtrl:this.lazyLoadController(['auth/groups/group-details/GroupDetailsController'])
+                // loadMyCtrl:this.lazyLoadController(['auth/groups/group-details/GroupDetailsController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "groups.details.controller" */ './groups/group-details/GroupDetailsController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load GroupDetailsController, " + err);
+                        });
+                }]
             },
             data: {
                 breadcrumbRoot: false,
@@ -102,14 +138,18 @@ class ModuleFactory  {
                 permissions:AccessConstants.UI_STATES.GROUP_DETAILS.permissions
             }
         });
-    }  
-
-    lazyLoadController(path:any){
-        return lazyLoadUtil.lazyLoadController(path,"auth/module-require");
     }
 
-    
-} 
+    runFn($ocLazyLoad: any){
+        return import(/* webpackChunkName: "users.module-require" */ "./module-require")
+            .then(mod => {
+                $ocLazyLoad.load({name:moduleName});
+            })
+            .catch(err => {
+                throw new Error("Failed to load users.module-require, " + err);
+            });
+    }
+}
 
 const module = new ModuleFactory();
 export default module;

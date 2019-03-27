@@ -7,7 +7,7 @@
   <parent>
     <groupId>com.thinkbiganalytics.kylo.integrations</groupId>
     <artifactId>kylo-spark-shell-client</artifactId>
-    <version>0.9.1-SNAPSHOT</version>
+    <version>0.10.1-SNAPSHOT</version>
   </parent>
 
   <artifactId>kylo-spark-shell-client-v2</artifactId>
@@ -36,8 +36,24 @@
       <version>2.2.0</version>
       <scope>provided</scope>
     </dependency>
+    <dependency>
+      <groupId>com.databricks</groupId>
+      <artifactId>spark-xml_${scala.binary.version}</artifactId>
+      <version>${spark2.xml.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-library</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
     <!-- Kylo dependencies -->
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-commons-spark-livy-${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.thinkbiganalytics.kylo</groupId>
       <artifactId>kylo-commons-hive</artifactId>
@@ -96,6 +112,33 @@
       </exclusions>
     </dependency>
 
+
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo.integrations</groupId>
+      <artifactId>kylo-spark-file-metadata-spark-v2</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-ext</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo.integrations</groupId>
+      <artifactId>kylo-spark-catalog-spark-v2</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Scala dependencies -->
     <dependency>
       <groupId>org.scala-lang</groupId>
@@ -105,6 +148,21 @@
     </dependency>
 
     <!-- Spark dependencies -->
+    <dependency>
+      <groupId>com.databricks</groupId>
+      <artifactId>spark-avro_${scala.binary.version}</artifactId>
+      <version>${spark.avro.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-library</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.avro</groupId>
+          <artifactId>avro</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
     <dependency>
       <groupId>org.apache.spark</groupId>
       <artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -144,6 +202,23 @@
       <scope>provided</scope>
     </dependency>
 
+    <!-- Livy Support -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.module</groupId>
+      <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+      <version>${jackson.scala.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-reflect</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-library</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
     <!-- Testing dependencies -->
     <dependency>
       <groupId>org.mockito</groupId>
@@ -161,8 +236,8 @@
     <plugins>
       <!-- Compiles Scala code -->
       <plugin>
-        <groupId>org.scala-tools</groupId>
-        <artifactId>maven-scala-plugin</artifactId>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
         <configuration>
           <checkMultipleScalaVersions>false</checkMultipleScalaVersions>
           <scalaVersion>${scala.version}</scalaVersion>

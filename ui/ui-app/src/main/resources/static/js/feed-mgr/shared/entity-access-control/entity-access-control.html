@@ -37,10 +37,10 @@
 
   <div layout="row" style="border-bottom: 1px solid rgba(0,0,0,0.12);">
     <div flex="40" style="align-self:center;">
-      <span class="item-title" style="color:grey"> {{"views.entity-access-control.Roles" | translate}} </span>
+      <span class="item-title tc-grey-800"> {{"views.entity-access-control.Roles" | translate}} </span>
     </div>
     <div flex class="">
-      <span class="item-title" style="color:grey"> {{"views.entity-access-control.Members" | translate}} </span>
+      <span class="item-title tc-grey-800"> {{"views.entity-access-control.Members" | translate}} </span>
     </div>
   </div>
   <div layout="column" ng-repeat="roleMembership in vm.entityRoleMemberships">
@@ -54,10 +54,10 @@
       </div>
 
       <md-input-container class="md-block layout-padding-top-bottom flex-gt-sm condensed" md-no-float="true" flex>
-        <md-chips ng-model="roleMembership.members" 
+        <md-chips ng-model="roleMembership.members"
                   md-autocomplete-snap
                   readonly="vm.readOnly"
-                  md-require-match="true" 
+                  md-require-match="true"
                   md-on-remove="vm.onRemovedMember($chip, roleMembership.members)"
                   class="layout-padding-top-bottom">
           <md-autocomplete
@@ -72,8 +72,8 @@
             <span md-highlight-text="roleMembership.ui.members.searchText">{{item.title}}</span>
             <md-item-template>
                   <span class="item-title">
-                     <ng-md-icon icon="group" style="fill:orange;" ng-if="item.type=='group'"></ng-md-icon>
-                     <ng-md-icon icon="account_circle" style="fill:blue;" ng-if="item.type=='user'"></ng-md-icon>
+                     <ng-md-icon icon="group" class="accent-color" ng-if="item.type=='group'"></ng-md-icon>
+                     <ng-md-icon icon="account_circle" class="primary-color-1" ng-if="item.type=='user'"></ng-md-icon>
                      <span> {{item.title}} </span>
                   </span>
             </md-item-template>
@@ -90,8 +90,8 @@
           </button>
           <md-chip-template>
             <span>
-               <ng-md-icon icon="group" ng-style="$chip.editable == false ? { 'opacity':'0.6' } : { 'opacity':'1.0' }" style="fill:orange" ng-if="$chip.type=='group'"></ng-md-icon>
-               <ng-md-icon icon="account_circle" ng-style="$chip.editable == false ? { 'opacity':'0.6' } : { 'opacity':'1.0' }" style="fill:blue" ng-if="$chip.type=='user'"></ng-md-icon>
+               <ng-md-icon icon="group" ng-style="$chip.editable == false ? { 'opacity':'0.6' } : { 'opacity':'1.0' }" class="accent-color" ng-if="$chip.type=='group'"></ng-md-icon>
+               <ng-md-icon icon="account_circle" ng-style="$chip.editable == false ? { 'opacity':'0.6' } : { 'opacity':'1.0' }" class="primary-color-1" ng-if="$chip.type=='user'"></ng-md-icon>
                <span ng-style="$chip.editable == false ? { 'opacity':'0.6' } : { 'opacity':'1.0' }" style="font-weight:bold">{{$chip.title}}</span>
             </span>
           </md-chip-template>

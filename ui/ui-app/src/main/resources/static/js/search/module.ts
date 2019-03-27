@@ -21,13 +21,22 @@ class ModuleFactory  {
             },
             views: {
                 'content': {
-                    templateUrl: 'js/search/common/search.html',
-                    controller: "SearchController",
-                    controllerAs: "vm"
+                   // templateUrl: 'js/search/common/search.html',
+                    component: "searchController",
+                    //controllerAs: "vm"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['search/common/SearchController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "kylo.search" */ "./common/SearchController")
+                        .then(mod => {
+                            //console.log('imported search controller module', mod);
+                            return $ocLazyLoad.load(mod.default);
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load search controller module, " + err);
+                        });
+                }]
             },
             data:{
                 breadcrumbRoot:false,

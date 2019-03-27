@@ -63,9 +63,23 @@ public class TableSetup {
     @JsonSerialize(as = DefaultTableSchema.class)
     @JsonDeserialize(as = DefaultTableSchema.class)
     private TableSchema feedTableSchema;
+
+    /**
+     * The schema used to create the feed (shows the fields that have been removed, modified, etc)
+     */
+    @JsonSerialize(as = DefaultTableSchema.class)
+    @JsonDeserialize(as = DefaultTableSchema.class)
+    private TableSchema feedDefinitionTableSchema;
+
     private String method;
     private String description = "";
     private List<FieldPolicy> fieldPolicies;
+
+    /**
+     * Policies defined during feed definition
+     */
+    private List<FieldPolicy> feedDefinitionFieldPolicies;
+
     private List<PartitionField> partitions;
     private String tableType;
     @MetadataField
@@ -75,6 +89,8 @@ public class TableSetup {
     private TableOptions options;
     @MetadataField(description = "Hive Row Format String for the Feed Table (example: ROW FORMAT DELIMITED FIELDS TERMINATED BY ',' LINES TERMINATED BY '\\n' STORED AS\n  TEXTFILE ")
     private String feedFormat;
+    @MetadataField(description = "Feed Hive table properties properties string (i.e.  tblproperties(\"orc.compress\"=\"SNAPPY\") ")
+    private String feedTblProperties;
     @MetadataField(description = "Format of the Destination Table storage. Supported Values are: [STORED AS PARQUET, STORED AS ORC]")
     private String targetFormat;
     @MetadataField(description = "Destination Hive Table Properties string (i.e.  tblproperties(\"orc.compress\"=\"SNAPPY\") ")
@@ -102,6 +118,11 @@ public class TableSetup {
 
     @MetadataField(description = "List of fields that are primary keys separated by a comma")
     private String primaryKeyFields;
+
+    /**
+     * Was the table generated from a structured source?
+     */
+    private boolean structured;
 
     private Map<String,String> sourceTargetFieldMap;
 
@@ -616,5 +637,26 @@ public class TableSetup {
 
     public void setTargetSourceFieldMap(Map<String, String> targetSourceFieldMap) {
         this.targetSourceFieldMap = targetSourceFieldMap;
+    }
+
+    public String getFeedTblProperties() { return feedTblProperties; }
+
+    public void setFeedTblProperties(String feedTblProperties) { this.feedTblProperties = feedTblProperties; }
+
+    public boolean isStructured() {
+        return structured;
+    }
+
+    public void setStructured(boolean structured) {
+        this.structured = structured;
+    }
+
+
+    public List<FieldPolicy> getFeedDefinitionFieldPolicies() {
+        return feedDefinitionFieldPolicies;
+    }
+
+    public void setFeedDefinitionFieldPolicies(List<FieldPolicy> feedDefinitionFieldPolicies) {
+        this.feedDefinitionFieldPolicies = feedDefinitionFieldPolicies;
     }
 }

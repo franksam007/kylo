@@ -26,10 +26,8 @@ import com.thinkbiganalytics.discovery.model.DefaultHiveSchema;
 import com.thinkbiganalytics.discovery.model.DefaultTag;
 import com.thinkbiganalytics.discovery.schema.Field;
 import com.thinkbiganalytics.discovery.schema.Tag;
-import com.thinkbiganalytics.feedmgr.rest.model.FeedCategory;
 import com.thinkbiganalytics.feedmgr.rest.model.FeedMetadata;
 import com.thinkbiganalytics.feedmgr.rest.model.schema.PartitionField;
-import com.thinkbiganalytics.feedmgr.service.template.importing.model.ImportTemplate;
 import com.thinkbiganalytics.integration.Diff;
 import com.thinkbiganalytics.jobrepo.query.model.DefaultExecutedJob;
 import com.thinkbiganalytics.jobrepo.query.model.ExecutedStep;
@@ -125,7 +123,8 @@ public class CsvFeedIT extends FeedITBase {
         DefaultExecutedJob[] jobs = getJobs(0,50,null,null);
 
         //TODO assert all executed jobs are successful
-        DefaultExecutedJob ingest = Arrays.stream(jobs).filter(job -> ("functional_tests." + feedName.toLowerCase()).equals(job.getFeedName())).findFirst().get();
+        DefaultExecutedJob ingest = Arrays.stream(jobs).filter(job -> ("functional_tests." + feedName.toLowerCase()).equals(job.getFeedName()))
+            .findFirst().orElseThrow(() -> new AssertionError("Missing jobs for functional_tests." + feedName.toLowerCase()));
         Assert.assertEquals(ExecutionStatus.COMPLETED, ingest.getStatus());
         Assert.assertEquals(ExitStatus.COMPLETED.getExitCode(), ingest.getExitCode());
 
@@ -251,7 +250,7 @@ public class CsvFeedIT extends FeedITBase {
     }
 
     protected void assertEditChanges(ArrayNode diffs) {
-        Assert.assertTrue(versionPatchContains(diffs, new Diff("replace", "/properties/0/value", getEditedFileName())));
+        Assert.assertTrue(versionPatchContains(diffs, new Diff("replace", "/properties/3/value", getEditedFileName())));
         Assert.assertTrue(versionPatchContains(diffs, new Diff("replace", "/schedule/schedulingPeriod", "20 sec")));
         Assert.assertTrue(versionPatchContains(diffs, new Diff("remove", "/description")));
         Assert.assertTrue(versionPatchContains(diffs, new Diff("add", "/tags/1")));

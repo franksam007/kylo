@@ -24,8 +24,8 @@ package com.thinkbiganalytics.metadata.modeshape.feed;
  */
 
 import com.thinkbiganalytics.metadata.api.feed.FeedSource;
+import com.thinkbiganalytics.metadata.modeshape.catalog.dataset.JcrDataSet;
 import com.thinkbiganalytics.metadata.modeshape.datasource.JcrDatasource;
-import com.thinkbiganalytics.metadata.sla.api.ServiceLevelAgreement;
 
 import javax.jcr.Node;
 
@@ -36,21 +36,44 @@ public class JcrFeedSource extends JcrFeedConnection implements FeedSource {
 
     public static final String NODE_TYPE = "tba:feedSource";
 
+    /**
+     * boolean flag indicating this source entry is used as a sample and should not be used in feed lineage
+     */
+    public static final String IS_SAMPLE = "tba:isSample";
+
     public JcrFeedSource(Node node) {
         super(node);
     }
 
     public JcrFeedSource(Node node, JcrDatasource datasource) {
         super(node, datasource);
-        datasource.addSourceNode(this.node);
+        datasource.addSourceNode(getNode());
+    }
+
+    public JcrFeedSource(Node node, JcrDataSet dataSet) {
+        super(node, dataSet);
+        dataSet.addSourceNode(getNode());
+    }
+
+    public void remove() {
+        getDatasource()
+            .map(JcrDatasource.class::cast)
+            .ifPresent(src -> src.removeSourceNode(getNode()));
+        getDataSet()
+            .map(JcrDataSet.class::cast)
+            .ifPresent(src -> src.removeSourceNode(getNode()));
+        
+        super.remove();
     }
 
 
-    /* (non-Javadoc)
-     * @see com.thinkbiganalytics.metadata.api.feed.FeedSource#getAgreement()
-     */
     @Override
-    public ServiceLevelAgreement getAgreement() {
-        return null;
+    public boolean isSample() {
+        return getProperty(IS_SAMPLE);
     }
+
+    public void setSample(boolean isSample) {
+        setProperty(IS_SAMPLE, isSample);
+    }
+    
 }

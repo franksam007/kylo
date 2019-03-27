@@ -21,6 +21,7 @@ package com.thinkbiganalytics.feedmgr.rest.controller;
  */
 
 import com.google.common.base.Predicate;
+import com.google.common.cache.Cache;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -128,6 +129,9 @@ public class TemplatesRestController {
 
     @Inject
     private NifiFlowCache nifiFlowCache;
+
+    @Inject
+    private Cache<String, Boolean> templateUpdateInfoCache;
 
     private MetadataService getMetadataService() {
         return metadataService;
@@ -366,6 +370,12 @@ public class TemplatesRestController {
     )
     public Response getRegisteredTemplates() {
         List<RegisteredTemplate> templates = getMetadataService().getRegisteredTemplates();
+
+        templates.forEach(t -> {
+            Boolean updateAvailable = templateUpdateInfoCache.getIfPresent(t.getTemplateName());
+            t.setUpdateAvailable(updateAvailable != null && updateAvailable);
+        });
+
         return Response.ok(templates).build();
 
     }

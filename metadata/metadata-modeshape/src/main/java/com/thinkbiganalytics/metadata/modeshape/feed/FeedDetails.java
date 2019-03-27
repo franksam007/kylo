@@ -3,6 +3,8 @@
  */
 package com.thinkbiganalytics.metadata.modeshape.feed;
 
+import com.thinkbiganalytics.metadata.api.catalog.DataSet;
+
 /*-
  * #%L
  * kylo-metadata-modeshape
@@ -32,18 +34,26 @@ import com.thinkbiganalytics.metadata.api.feed.FeedPrecondition;
 import com.thinkbiganalytics.metadata.api.feed.FeedSource;
 import com.thinkbiganalytics.metadata.api.template.FeedManagerTemplate;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
-import com.thinkbiganalytics.metadata.modeshape.common.JcrPropertiesEntity;
+import com.thinkbiganalytics.metadata.modeshape.catalog.dataset.JcrDataSet;
+import com.thinkbiganalytics.metadata.modeshape.common.JcrObject;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.PropertiedMixin;
 import com.thinkbiganalytics.metadata.modeshape.datasource.JcrDatasource;
+import com.thinkbiganalytics.metadata.modeshape.feed.JcrFeed.FeedId;
 import com.thinkbiganalytics.metadata.modeshape.sla.JcrServiceLevelAgreement;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrPropertyUtil;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrUtil;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrVersionUtil;
+import com.thinkbiganalytics.metadata.modeshape.support.NodeModificationInvocationHandler;
 import com.thinkbiganalytics.metadata.modeshape.template.JcrFeedTemplate;
 import com.thinkbiganalytics.metadata.sla.api.ServiceLevelAgreement;
 
+import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationHandler;
+import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -61,7 +71,7 @@ import javax.jcr.Value;
 /**
  *
  */
-public class FeedDetails extends JcrPropertiesEntity {
+public class FeedDetails extends JcrObject implements PropertiedMixin, AuditableMixin {
 
     private static final Logger log = LoggerFactory.getLogger(FeedDetails.class);
 
@@ -97,18 +107,42 @@ public class FeedDetails extends JcrPropertiesEntity {
     protected FeedSummary getParentSummary() {
         return this.summary;
     }
+    
+    @Override
+    public DateTime getModifiedTime() {
+        DateTime thisTime = AuditableMixin.super.getModifiedTime();
+        
+        return getPrecondition()
+            .map(JcrFeedPrecondition.class::cast)
+            .map(JcrFeedPrecondition::getModifiedTime)
+            .filter(time -> time.compareTo(thisTime) > 0)
+            .orElse(thisTime);
+    }
+    
+    @Override
+    public String getModifiedBy() {
+        String thisModifier = getModifiedBy();
+        DateTime thisTime = AuditableMixin.super.getModifiedTime();
+        
+        return getPrecondition()
+            .map(JcrFeedPrecondition.class::cast)
+            .map(JcrFeedPrecondition::getModifiedTime)
+            .filter(time -> time.compareTo(thisTime) > 0)
+            .map(time -> thisModifier)
+            .orElse(thisModifier);
+    }
 
     public List<? extends FeedSource> getSources() {
-        return JcrUtil.getJcrObjects(this.node, SOURCE_NAME, JcrFeedSource.class);
+        return JcrUtil.getJcrObjects(getNode(), SOURCE_NAME, JcrFeedSource.class);
     }
 
     public List<? extends FeedDestination> getDestinations() {
-        return JcrUtil.getJcrObjects(this.node, DESTINATION_NAME, JcrFeedDestination.class);
+        return JcrUtil.getJcrObjects(getNode(), DESTINATION_NAME, JcrFeedDestination.class);
     }
 
     public <C extends Category> List<Feed> getDependentFeeds() {
         List<Feed> deps = new ArrayList<>();
-        Set<Node> depNodes = JcrPropertyUtil.getSetProperty(this.node, DEPENDENTS);
+        Set<Node> depNodes = JcrPropertyUtil.getSetProperty(getNode(), DEPENDENTS);
 
         for (Node depNode : depNodes) {
             deps.add(new JcrFeed(depNode, this.summary.getParentFeed().getOpsAccessProvider().orElse(null)));
@@ -122,7 +156,7 @@ public class FeedDetails extends JcrPropertiesEntity {
         Node depNode = dependent.getNode();
         feed.addUsedByFeed(getParentFeed());
 
-        return JcrPropertyUtil.addToSetProperty(this.node, DEPENDENTS, depNode, true);
+        return JcrPropertyUtil.addToSetProperty(getNode(), DEPENDENTS, depNode, true);
     }
 
     public boolean removeDependentFeed(Feed feed) {
@@ -131,7 +165,7 @@ public class FeedDetails extends JcrPropertiesEntity {
         feed.removeUsedByFeed(getParentFeed());
 
         boolean weakRef = false;
-        Optional<Property> prop = JcrPropertyUtil.findProperty(this.node, DEPENDENTS);
+        Optional<Property> prop = JcrPropertyUtil.findProperty(getNode(), DEPENDENTS);
         if (prop.isPresent()) {
             try {
                 weakRef = PropertyType.WEAKREFERENCE == prop.get().getType();
@@ -139,19 +173,19 @@ public class FeedDetails extends JcrPropertiesEntity {
                 log.error("Error removeDependentFeed for {}.  Unable to identify if the property is a Weak Reference or not {} ", feed.getName(), e.getMessage(), e);
             }
         }
-        return JcrPropertyUtil.removeFromSetProperty(this.node, DEPENDENTS, depNode, weakRef);
+        return JcrPropertyUtil.removeFromSetProperty(getNode(), DEPENDENTS, depNode, weakRef);
     }
 
     public boolean addUsedByFeed(Feed feed) {
         JcrFeed dependent = (JcrFeed) feed;
         Node depNode = dependent.getNode();
 
-        return JcrPropertyUtil.addToSetProperty(this.node, USED_BY_FEEDS, depNode, true);
+        return JcrPropertyUtil.addToSetProperty(getNode(), USED_BY_FEEDS, depNode, true);
     }
 
     public List<Feed> getUsedByFeeds() {
         List<Feed> deps = new ArrayList<>();
-        Set<Node> depNodes = JcrPropertyUtil.getSetProperty(this.node, USED_BY_FEEDS);
+        Set<Node> depNodes = JcrPropertyUtil.getSetProperty(getNode(), USED_BY_FEEDS);
 
         for (Node depNode : depNodes) {
             deps.add(new JcrFeed(depNode, this.summary.getParentFeed().getOpsAccessProvider().orElse(null)));
@@ -164,7 +198,7 @@ public class FeedDetails extends JcrPropertiesEntity {
         JcrFeed dependent = (JcrFeed) feed;
         Node depNode = dependent.getNode();
         boolean weakRef = false;
-        Optional<Property> prop = JcrPropertyUtil.findProperty(this.node, USED_BY_FEEDS);
+        Optional<Property> prop = JcrPropertyUtil.findProperty(getNode(), USED_BY_FEEDS);
         if (prop.isPresent()) {
             try {
                 weakRef = PropertyType.WEAKREFERENCE == prop.get().getType();
@@ -172,13 +206,17 @@ public class FeedDetails extends JcrPropertiesEntity {
                 log.error("Error removeUsedByFeed for {}.  Unable to identify if the property is a Weak Reference or not {} ", feed.getName(), e.getMessage(), e);
             }
         }
-        return JcrPropertyUtil.removeFromSetProperty(this.node, USED_BY_FEEDS, depNode, weakRef);
+        return JcrPropertyUtil.removeFromSetProperty(getNode(), USED_BY_FEEDS, depNode, weakRef);
     }
 
     public FeedSource getSource(final Datasource.ID id) {
         List<? extends FeedSource> sources = getSources();
         if (sources != null) {
-            return sources.stream().filter(feedSource -> feedSource.getDatasource().getId().equals(id)).findFirst().orElse(null);
+            return sources.stream()
+                .filter(feedSource -> feedSource.getDatasource().isPresent())
+                .filter(feedSource -> feedSource.getDatasource().get().getId().equals(id))
+                .findFirst()
+                .orElse(null);
         }
         return null;
     }
@@ -186,25 +224,45 @@ public class FeedDetails extends JcrPropertiesEntity {
     public FeedDestination getDestination(final Datasource.ID id) {
         List<? extends FeedDestination> destinations = getDestinations();
         if (destinations != null) {
-            return destinations.stream().filter(feedDestination -> feedDestination.getDatasource().getId().equals(id)).findFirst().orElse(null);
+            return destinations.stream()
+                .filter(feedDestination -> feedDestination.getDatasource().isPresent())
+                .filter(feedDestination -> feedDestination.getDatasource().get().getId().equals(id))
+                .findFirst()
+                .orElse(null);
+        }
+        return null;
+    }
+    
+    public FeedSource getSource(final DataSet.ID id) {
+        List<? extends FeedSource> sources = getSources();
+        if (sources != null) {
+            return sources.stream()
+                .filter(feedSource -> feedSource.getDataSet().isPresent())
+                .filter(feedSource -> feedSource.getDataSet().get().getId().equals(id))
+                .findFirst()
+                .orElse(null);
+        }
+        return null;
+    }
+    
+    public FeedDestination getDestination(final DataSet.ID id) {
+        List<? extends FeedDestination> destinations = getDestinations();
+        if (destinations != null) {
+            return destinations.stream()
+                .filter(feedDestination -> feedDestination.getDataSet().isPresent())
+                .filter(feedDestination -> feedDestination.getDataSet().get().getId().equals(id))
+                .findFirst()
+                .orElse(null);
         }
         return null;
     }
 
-    public FeedPrecondition getPrecondition() {
-        try {
-            if (this.node.hasNode(PRECONDITION)) {
-                return new JcrFeedPrecondition(this.node.getNode(PRECONDITION), getParentFeed());
-            } else {
-                return null;
-            }
-        } catch (RepositoryException e) {
-            throw new MetadataRepositoryException("Failed to retrieve the feed precondition", e);
-        }
+    public Optional<FeedPrecondition> getPrecondition() {
+        return Optional.ofNullable(JcrUtil.getJcrObject(getNode(), PRECONDITION, JcrFeedPrecondition.class, getParentFeed()));
     }
 
     public FeedManagerTemplate getTemplate() {
-        return getProperty(TEMPLATE, JcrFeedTemplate.class, true);
+        return getProperty(TEMPLATE, JcrFeedTemplate.class);
     }
 
     public void setTemplate(FeedManagerTemplate template) {
@@ -213,7 +271,7 @@ public class FeedDetails extends JcrPropertiesEntity {
     }
 
     public List<ServiceLevelAgreement> getServiceLevelAgreements() {
-        Set<Node> list = JcrPropertyUtil.getReferencedNodeSet(this.node, SLA);
+        Set<Node> list = JcrPropertyUtil.getReferencedNodeSet(getNode(), SLA);
         List<ServiceLevelAgreement> serviceLevelAgreements = new ArrayList<>();
         if (list != null) {
             for (Node n : list) {
@@ -229,17 +287,17 @@ public class FeedDetails extends JcrPropertiesEntity {
 
     public void removeServiceLevelAgreement(ServiceLevelAgreement.ID id) {
         try {
-            Set<Node> nodes = JcrPropertyUtil.getSetProperty(this.node, SLA);
+            Set<Node> nodes = JcrPropertyUtil.getSetProperty(getNode(), SLA);
             Set<Value> updatedSet = new HashSet<>();
             for (Node node : nodes) {
                 if (!node.getIdentifier().equalsIgnoreCase(id.toString())) {
-                    Value value = this.node.getSession().getValueFactory().createValue(node, true);
+                    Value value = JcrPropertyUtil.createValue(getNode().getSession(), node, true); 
                     updatedSet.add(value);
                 }
             }
-            node.setProperty(SLA, (Value[]) updatedSet.stream().toArray(size -> new Value[size]));
+            getNode().setProperty(SLA, (Value[]) updatedSet.stream().toArray(size -> new Value[size]));
         } catch (RepositoryException e) {
-            throw new MetadataRepositoryException("Unable to remove reference to SLA " + id + "from feed " + this.getId());
+            throw new MetadataRepositoryException("Unable to remove reference to SLA " + id + "from feed " + getParentFeed().getId());
         }
 
     }
@@ -248,7 +306,7 @@ public class FeedDetails extends JcrPropertiesEntity {
         JcrServiceLevelAgreement jcrServiceLevelAgreement = (JcrServiceLevelAgreement) sla;
         Node node = jcrServiceLevelAgreement.getNode();
         //add a ref to this node
-        return JcrPropertyUtil.addToSetProperty(this.node, SLA, node, true);
+        return JcrPropertyUtil.addToSetProperty(getNode(), SLA, node, true);
     }
 
     public String getJson() {
@@ -271,41 +329,41 @@ public class FeedDetails extends JcrPropertiesEntity {
         Node feedSrcNode = JcrUtil.addNode(getNode(), FeedDetails.SOURCE_NAME, JcrFeedSource.NODE_TYPE);
         return new JcrFeedSource(feedSrcNode, datasource);
     }
+    
+    protected JcrFeedSource ensureFeedSource(JcrDataSet dataSource, boolean isSample) {
+        Node feedSrcNode = JcrUtil.addNode(getNode(), FeedDetails.SOURCE_NAME, JcrFeedSource.NODE_TYPE);
+        JcrFeedSource feedSource = new JcrFeedSource(feedSrcNode, dataSource);
+        feedSource.setSample(isSample);
+        return feedSource;
+    }
 
     protected JcrFeedDestination ensureFeedDestination(JcrDatasource datasource) {
         Node feedDestNode = JcrUtil.addNode(getNode(), FeedDetails.DESTINATION_NAME, JcrFeedDestination.NODE_TYPE);
         return new JcrFeedDestination(feedDestNode, datasource);
     }
+    
+    protected JcrFeedDestination ensureFeedDestination(JcrDataSet datasource) {
+        Node feedDestNode = JcrUtil.addNode(getNode(), FeedDetails.DESTINATION_NAME, JcrFeedDestination.NODE_TYPE);
+        return new JcrFeedDestination(feedDestNode, datasource);
+    }
 
     protected void removeFeedSource(JcrFeedSource source) {
-        try {
-            source.getNode().remove();
-        } catch (RepositoryException e) {
-            throw new MetadataRepositoryException("nable to remove feed source for feed " + getParentSummary().getSystemName(), e);
-        }
+        source.remove();
     }
 
     protected void removeFeedDestination(JcrFeedDestination dest) {
-        try {
-            dest.getNode().remove();
-        } catch (RepositoryException e) {
-            throw new MetadataRepositoryException("nable to remove feed destination for feed " + getParentSummary().getSystemName(), e);
-        }
+        dest.remove();
     }
 
     protected void removeFeedSources() {
         List<? extends FeedSource> sources = getSources();
         if (sources != null && !sources.isEmpty()) {
             //checkout the feed
-            sources.stream().forEach(source -> {
-                try {
-                    Node sourceNode = ((JcrFeedSource) source).getNode();
-                    ((JcrDatasource) ((JcrFeedSource) source).getDatasource()).removeSourceNode(sourceNode);
-                    sourceNode.remove();
-                } catch (RepositoryException e) {
-                    e.printStackTrace();
-                }
-            });
+            sources.stream()
+                .map(JcrFeedSource.class::cast)
+                .forEach(source -> {
+                    removeFeedSource(source);
+                });
         }
     }
 
@@ -313,24 +371,19 @@ public class FeedDetails extends JcrPropertiesEntity {
         List<? extends FeedDestination> destinations = getDestinations();
         
         if (destinations != null && !destinations.isEmpty()) {
-            destinations.stream().forEach(dest -> {
-                try {
-                    // Remove the connection nodes
-                    Node destNode = ((JcrFeedDestination) dest).getNode();
-                    JcrDatasource datasource = (JcrDatasource) dest.getDatasource();
-                    datasource.removeDestinationNode(destNode);
-                    destNode.remove();
+            destinations.stream()
+                .map(JcrFeedDestination.class::cast)
+                .forEach(dest -> {
+                    Optional<Datasource> datasource = dest.getDatasource();
                     
+                    removeFeedDestination(dest);
                     // Remove the datasource if there are no referencing feeds
-                    if (datasource.getFeedDestinations().isEmpty() && datasource.getFeedSources().isEmpty()) {
-                        datasource.remove();
-                    }
-                } catch (RepositoryException e) {
-                    e.printStackTrace();
-                }
-            });
-            
-            
+                    datasource
+                        .filter(dsrc -> dsrc.getFeedSources().isEmpty())
+                        .filter(dsrc -> dsrc.getFeedDestinations().isEmpty())
+                        .map(JcrDatasource.class::cast)
+                        .ifPresent(dsrc -> dsrc.remove());
+                });
         }
     }
 
@@ -354,11 +407,20 @@ public class FeedDetails extends JcrPropertiesEntity {
 
     @Nonnull
     public Map<String, String> getUserProperties() {
-        return JcrPropertyUtil.getUserProperties(node);
+        return JcrPropertyUtil.getUserProperties(getNode());
     }
 
     public void setUserProperties(@Nonnull final Map<String, String> userProperties, @Nonnull final Set<UserFieldDescriptor> userFields) {
-        JcrPropertyUtil.setUserProperties(node, userFields, userProperties);
+        JcrPropertyUtil.setUserProperties(getNode(), userFields, userProperties);
+    }
+
+    /**
+     * is this feed missing any user properties that are required
+     * @param userFields
+     * @return true if missing properties, false if not
+     */
+   public boolean isMissingRequiredProperties(@Nonnull final Set<UserFieldDescriptor> userFields){
+        return JcrPropertyUtil.isMissingRequiredUserProperties(getNode(),userFields);
     }
 
 }

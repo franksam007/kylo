@@ -33,7 +33,7 @@ import * as angular from 'angular';
 import * as _ from "underscore";
 import {VisualQueryPainterService} from '../../visual-query/transform-data/visual-query-table/visual-query-painter.service';
 
-const moduleName = require('feed-mgr/module-name');
+import {moduleName} from "../../module-name";;
 
 function FattableService($window: any) {
     const self = this;
@@ -84,6 +84,11 @@ function FattableService($window: any) {
         getHeaderSync: function (j: any) {
             return this.headers[j].displayName;
         }
+    };
+
+    self.destroy = function(tableContainerId: string) {
+        const eventId = "resize.fattable." + tableContainerId;
+        angular.element($window).unbind(eventId);
     };
 
     self.setupTable = function (options: any) {
@@ -167,7 +172,7 @@ function FattableService($window: any) {
             setColumnId(children.last(), header.id);
 
             const valueDiv = children.first();
-            valueDiv.css("width", (self.table.columnWidths[header.id] - settings.headerPadding - 2) + "px"); //leave 2 pixels for column separator
+            //valueDiv.css("width", (self.table.columnWidths[header.id] - settings.headerPadding - 2) + "px"); //leave 2 pixels for column separator
             const valueSpan = valueDiv.get(0);
             settings.fillHeader(valueSpan, header);
         };
@@ -279,10 +284,12 @@ function FattableService($window: any) {
         angular.element($window).unbind(eventId);
         const debounced = _.debounce(self.setupTable, settings.setupRefreshDebounce);
         angular.element($window).on(eventId, function () {
+
             debounced(settings);
         });
 
         angular.element(selector).on('$destroy', function () {
+
             angular.element($window).unbind(eventId);
         });
     }

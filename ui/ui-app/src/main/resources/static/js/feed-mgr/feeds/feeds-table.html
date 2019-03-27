@@ -20,13 +20,15 @@
 <div >
 
   <card-layout header-css="filter-header" class="centered">
-    <header-section tba-card-filter-header flex layout card-title="vm.cardTitle" page-name="{{vm.pageName}}" view-type="vm.viewType" sort-options="vm.sortOptions"
-                    on-selected-option="vm.selectedTableOption" filter-model="vm.filter" filter-model-options="{debounce:1000}">
+    <header-section>
+      <tba-card-filter-header flex layout card-title="vm.cardTitle" page-name="{{vm.pageName}}" view-type="vm.viewType" sort-options="vm.sortOptions"
+        on-selected-option="vm.selectedTableOption" filter-model="vm.filter" filter-model-options="{debounce:1000}">
+      </tba-card-filter-header>
     </header-section>
 
     <body-section>
       <div ng-if="vm.loading">
-        <md-progress-linear md-mode="indeterminate"></md-progress-linear>
+        <md-progress-linear md-mode="indeterminate" class="md-accent"></md-progress-linear>
         <span class="md-body-2 layout-padding-left">{{"feeds.feed-table.loading-feeds" | translate}}</span>
       </div>
       <div ng-hide="vm.viewType != 'list'" ng-show="vm.viewType == 'list' && !vm.loading">
@@ -37,7 +39,7 @@
                         pagination-id="feeds"
                         current-page="vm.currentPage">
             <div layout="row" layout-fill>
-              <div flex="30" layout="column" class="item-column md-list-item-text pointer" ng-click="vm.feedDetails($event,feed)" title="{{feed.feedName}} - {{feed.state}}">
+              <div flex="30" layout="column" class="item-column md-list-item-text pointer" ng-click="vm.feedDefinition($event,feed)" title="{{feed.feedName}} - {{feed.state}}">
                                      <span class="item-title" title="{{feed.feedName}} - {{feed.state}}" ng-class="{'disabled':feed.state == 'DISABLED'}">
                                       {{feed.feedName}}
                                    </span>
@@ -45,7 +47,8 @@
                                      <span ng-if="feed.state == 'DISABLED'">
                                           <ng-md-icon icon="{{feed.stateIcon}}" size="20" hide-xs>
                                           </ng-md-icon>
-                                       </span> {{"feeds.feed-table.feed-name" | translate}}
+                                     </span>
+                                     {{"feeds.feed-table.feed-name" | translate}}
                                    </span>
 
               </div>
@@ -63,12 +66,14 @@
                                    </span>
                 <span class="column-title column-title-bottom">{{"feeds.feed-table.type" | translate}}</span>
               </div>
+              <!--
               <div flex="15" layout="column" class="item-column md-list-item-text" ng-if="vm.allowExport">
                 <md-button href="{{feed.exportUrl}}" layout-align="center" ng-disabled="!feed.allowExport">
                   <ng-md-icon icon="launch" size="20" style="fill:#F08C38"></ng-md-icon>
                   <span style="padding-left:10px;">{{"feeds.feed-table.export" | translate}}</span>
                 </md-button>
               </div>
+              -->
             </div>
             <md-divider ng-if="!$last"></md-divider>
           </md-list-item>
@@ -105,16 +110,16 @@
             </tr>
             </thead>
             <tbody md-body>
-            <tr md-row
+            <tr md-row class="cursor-pointer"
                 ng-repeat="feed in vm.feedData"
-                ng-click="vm.feedDetails($event,feed)">
-              <td md-cell>{{feed.feedName}}</td>
+                ng-click="vm.feedDefinition($event,feed)">
+              <td md-cell >{{feed.feedName}}</td>
               <td md-cell>
-                                    <span ng-class="{'enabled':feed.state == 'ENABLED','disabled':feed.state == 'DISABLED'}">
-                                       <ng-md-icon icon="{{feed.stateIcon}}" size="20">
-                                       </ng-md-icon>
-                                       <span>{{feed.state}}</span></span>
-
+                <span  ng-class="{'enabled':feed.state == 'ENABLED','disabled':feed.state == 'DISABLED'}">
+                   <ng-md-icon icon="{{feed.stateIcon}}" size="20">
+                   </ng-md-icon>
+                   <span>{{feed.state}}</span>
+                </span>
               </td>
               <td md-cell>
                 <ng-md-icon icon="{{feed.category.icon}}" size="20" ng-style="{'fill':feed.category.iconColor}">

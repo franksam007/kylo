@@ -76,7 +76,7 @@ public abstract class AbstractNiFiProcessorsRestClient implements NiFiProcessors
         return findById(processor.getParentGroupId(), processor.getId())
             .map(initState -> {
                 ProcessorDTO current = initState;
-                List<Function<ProcessorDTO, ProcessorDTO>> wakeSequence = genrateWakeSequence(current);
+                List<Function<ProcessorDTO, ProcessorDTO>> wakeSequence = generateWakeSequence(current);
                 
                 for (Function<ProcessorDTO, ProcessorDTO> transition : wakeSequence) {
                     current = transition.apply(createProcessor(current));
@@ -87,7 +87,7 @@ public abstract class AbstractNiFiProcessorsRestClient implements NiFiProcessors
             .orElseThrow(() -> new NifiComponentNotFoundException(processor.getId(), NifiConstants.NIFI_COMPONENT_TYPE.PROCESSOR, null));
     }
 
-    private List<Function<ProcessorDTO, ProcessorDTO>> genrateWakeSequence(ProcessorDTO originalProc) {
+    private List<Function<ProcessorDTO, ProcessorDTO>> generateWakeSequence(ProcessorDTO originalProc) {
         List<Function<ProcessorDTO, ProcessorDTO>> sequence = new ArrayList<>();
         PROCESS_STATE state = PROCESS_STATE.valueOf(originalProc.getState().toUpperCase());
         SCHEDULE_STRATEGIES strategy = SCHEDULE_STRATEGIES.valueOf(originalProc.getConfig().getSchedulingStrategy().toUpperCase());
@@ -110,9 +110,16 @@ public abstract class AbstractNiFiProcessorsRestClient implements NiFiProcessors
                 proc.setState(PROCESS_STATE.RUNNING.name());
                 return updateWithRetry(proc, 5, 300, TimeUnit.MILLISECONDS);
             });
-            sequence.add((proc) -> {
+
+            sequence.add(proc -> {
                 delay(2000);
                 proc.setState(PROCESS_STATE.STOPPED.name());
+                return updateWithRetry(proc, 5, 300, TimeUnit.MILLISECONDS);
+            });
+
+            sequence.add(proc -> {
+                delay(2000);
+                proc.setConfig(createConfig(originalProc.getConfig().getSchedulingStrategy(), originalProc.getConfig().getSchedulingPeriod()));
                 return updateWithRetry(proc, 5, 300, TimeUnit.MILLISECONDS);
             });
         }
@@ -150,7 +157,7 @@ public abstract class AbstractNiFiProcessorsRestClient implements NiFiProcessors
     
     private void delay(long millis) {
         try {
-            Thread.sleep(millis);;
+            Thread.sleep(millis);
         } catch (InterruptedException e) {
             // Do nothing
         }

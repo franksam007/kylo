@@ -5,7 +5,7 @@
 	<parent>
 		<artifactId>kylo-hadoop-authorization-sentry-default</artifactId>
 		<groupId>com.thinkbiganalytics.kylo.plugins</groupId>
-		<version>0.9.1-SNAPSHOT</version>
+		<version>0.10.1-SNAPSHOT</version>
 	</parent>
 	<properties>
 		<plugin.license.parentRelative>../../../</plugin.license.parentRelative>
@@ -100,6 +100,10 @@
 				<exclusion>
 					<groupId>xerces</groupId>
 					<artifactId>xercesImpl</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>javax.servlet.jsp</groupId>
+					<artifactId>jsp-api</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>

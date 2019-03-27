@@ -7,10 +7,9 @@
   <parent>
     <groupId>com.thinkbiganalytics.kylo.integrations</groupId>
     <artifactId>kylo-spark-merge-table</artifactId>
-    <version>0.9.1-SNAPSHOT</version>
+    <version>0.10.1-SNAPSHOT</version>
   </parent>
   <properties>
-    <jackson.databind.version>2.4.4</jackson.databind.version>
     <plugin.license.parentRelative>../../../../</plugin.license.parentRelative>
   </properties>
 
@@ -98,16 +97,6 @@
           </execution>
         </executions>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-compiler-plugin</artifactId>
-        <version>3.2</version>
-        <configuration>
-          <source>1.7</source>
-          <target>1.7</target>
-        </configuration>
-      </plugin>
-
     </plugins>
   </build>
 

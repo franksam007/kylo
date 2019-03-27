@@ -5,6 +5,7 @@ import AccessConstants from "../../constants/AccessConstants";
 import "kylo-common";
 import "kylo-services";
 import "kylo-opsmgr";
+import {StateProvider} from "@uirouter/angularjs";
 
 class ModuleFactory  {
     module: ng.IModule;
@@ -12,21 +13,30 @@ class ModuleFactory  {
         this.module = angular.module(moduleName,[]);
         this.module.config(['$stateProvider','$compileProvider',this.configFn.bind(this)]);
     }
-    configFn($stateProvider:any, $compileProvider: any) {
+    configFn($stateProvider:StateProvider, $compileProvider: angular.ICompileProvider) {
          $stateProvider.state(AccessConstants.UI_STATES.ALERTS.state,{
             url:'/alerts',
             views: {
                 'content': {
-                    templateUrl: 'js/ops-mgr/alerts/alerts-table.html',
-                    controller:'AlertsController',
-                    controllerAs:'vm'
+                   // templateUrl: './alerts-table.html',
+                    component:'alertsController',
+                    //controllerAs:'vm'
                 }
             },
             params: {
                 query: null
             },
             resolve: {
-                loadPage: this.lazyLoad()
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "opsmgr.alert-details.controller" */ './AlertDetailsController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load AlertDetailsController, " + err);
+                        });
+                }]
             },
             data:{
                 displayName:'Alerts',
@@ -37,16 +47,26 @@ class ModuleFactory  {
             url:"/alert-details/{alertId}",
             views: {
                 'content': {
-                    templateUrl: 'js/ops-mgr/alerts/alert-details.html',
-                    controller:'AlertDetailsController',
-                    controllerAs:'vm'
+                    //templateUrl: './alert-details.html',
+                    component:'alertDetailsController',
+                    //controllerAs:'vm'
                 }
             },
             params: {
                 alertId: null
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['ops-mgr/alerts/AlertDetailsController'])
+                // loadMyCtrl: this.lazyLoadController(['./AlertDetailsController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "opsmgr.alert-details.controller" */ './AlertDetailsController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load AlertDetailsController, " + err);
+                        });
+                }]
             },
             data:{
                 displayName:'Alert Details',
@@ -55,14 +75,7 @@ class ModuleFactory  {
             }
         });
     }  
-
-    lazyLoadController(path:any){
-        return lazyLoadUtil.lazyLoadController(path,["ops-mgr/alerts/module-require"]);
-    }    
-    lazyLoad(){
-        return lazyLoadUtil.lazyLoad(['ops-mgr/alerts/module-require']);
-    }
-} 
+}
 
 const module = new ModuleFactory();
 export default module;

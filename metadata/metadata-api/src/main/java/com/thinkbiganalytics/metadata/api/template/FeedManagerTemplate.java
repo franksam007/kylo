@@ -23,14 +23,18 @@ package com.thinkbiganalytics.metadata.api.template;
 import java.io.Serializable;
 import java.util.List;
 
-import org.joda.time.DateTime;
-
+import com.thinkbiganalytics.metadata.api.Auditable;
+import com.thinkbiganalytics.metadata.api.Iconable;
+import com.thinkbiganalytics.metadata.api.SystemEntity;
+import com.thinkbiganalytics.metadata.api.Taggable;
 import com.thinkbiganalytics.metadata.api.feed.Feed;
-import com.thinkbiganalytics.metadata.api.security.AccessControlled;
+import com.thinkbiganalytics.security.AccessControlled;
+
+import org.joda.time.DateTime;
 
 /**
  */
-public interface FeedManagerTemplate extends AccessControlled {
+public interface FeedManagerTemplate extends AccessControlled, Auditable, Iconable, SystemEntity, Taggable {
 
     List<Feed> getFeeds();
 
@@ -48,10 +52,6 @@ public interface FeedManagerTemplate extends AccessControlled {
 
     void setNifiTemplateId(String nifiTemplateId);
 
-    String getDescription();
-
-    void setDescription(String description);
-
     boolean isDefineTable();
 
     void setDefineTable(boolean defineTable);
@@ -64,21 +64,9 @@ public interface FeedManagerTemplate extends AccessControlled {
 
     void setAllowPreconditions(boolean allowedPreconditions);
 
-    String getIcon();
-
-    void setIcon(String icon);
-
-    String getIconColor();
-
-    void setIconColor(String iconColor);
-
     String getJson();
 
     void setJson(String json);
-
-    DateTime getCreatedTime();
-
-    DateTime getModifiedTime();
 
     State getState();
 
@@ -93,6 +81,12 @@ public interface FeedManagerTemplate extends AccessControlled {
     void setStream(boolean stream);
 
     String getTemplateTableOption();
+
+    List<ChangeComment> getChangeComments();
+
+    ChangeComment addChangeComment(String comment, DateTime dateTime);
+
+    void clearChangeComments();
 
     void setTemplateTableOption(String templateTableOption);
 

@@ -1,5 +1,7 @@
 package com.thinkbiganalytics.metadata.modeshape.feed;
 
+import com.thinkbiganalytics.metadata.api.template.ChangeComment;
+
 /*-
  * #%L
  * kylo-metadata-modeshape
@@ -20,38 +22,69 @@ package com.thinkbiganalytics.metadata.modeshape.feed;
  * #L%
  */
 
-import com.thinkbiganalytics.metadata.api.category.Category;
-import com.thinkbiganalytics.metadata.api.category.CategoryNotFoundException;
 import com.thinkbiganalytics.metadata.modeshape.category.JcrCategory;
-import com.thinkbiganalytics.metadata.modeshape.common.AbstractJcrAuditableSystemEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.JcrObject;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.IndexControlledMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.SystemEntityMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.TaggableMixin;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrUtil;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrVersionUtil;
+import com.thinkbiganalytics.metadata.modeshape.template.JcrChangeComment;
+
+import org.joda.time.DateTime;
 
 import java.util.Optional;
 
 import javax.jcr.Node;
 
-public class FeedSummary extends AbstractJcrAuditableSystemEntity {
+public class FeedSummary extends JcrObject implements SystemEntityMixin, AuditableMixin, TaggableMixin, IndexControlledMixin {
 
     public static final String NODE_TYPE = "tba:feedSummary";
 
+    public static final String VERSION_COMMENT = "tba:versionComment";
     public static final String DETAILS = "tba:details";
-
-//    public static final String CATEGORY = "tba:category";
 
     private FeedDetails details;
     private JcrFeed feed;
 
     public FeedSummary(Node node, JcrFeed feed) {
-        super(JcrVersionUtil.createAutoCheckoutProxy(node));
+        super(JcrVersionUtil.createAutoCheckoutProxy(node, false));
         this.feed = feed;
     }
 
     public FeedSummary(Node node, JcrCategory category, JcrFeed feed) {
         this(node, feed);
-//        if (category != null) {
-//            setProperty(CATEGORY, category);
-//        }
+    }
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin#getModifiedTime()
+     */
+    @Override
+    public DateTime getModifiedTime() {
+        DateTime thisTime = AuditableMixin.super.getModifiedTime();
+        
+        return getFeedDetails()
+            .map(FeedDetails::getModifiedTime)
+            .filter(time -> time != null)
+            .filter(time -> time.compareTo(thisTime) > 0)
+            .orElse(thisTime);
+    }
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin#getModifiedBy()
+     */
+    @Override
+    public String getModifiedBy() {
+        String thisModifier = getModifiedBy();
+        DateTime thisTime = AuditableMixin.super.getModifiedTime();
+        
+        return getFeedDetails()
+            .map(FeedDetails::getModifiedTime)
+            .filter(time -> time != null)
+            .filter(time -> time.compareTo(thisTime) > 0)
+            .map(time -> thisModifier)
+            .orElse(thisModifier);
     }
 
     public Optional<FeedDetails> getFeedDetails() {
@@ -66,25 +99,17 @@ public class FeedSummary extends AbstractJcrAuditableSystemEntity {
             return Optional.of(this.details);
         }
     }
-//
-//    protected Category getCategory(Class<? extends JcrCategory> categoryClass) {
-//        Category category = null;
-//        try {
-//            category = (Category) getProperty(CATEGORY, categoryClass);
-//        } catch (Exception e) {
-//            if (category == null) {
-//                try {
-//                    category = (Category) JcrUtil.constructNodeObject(this.feed.getNode().getParent(), categoryClass, null);
-//                } catch (Exception e2) {
-//                    throw new CategoryNotFoundException("Unable to find category on Feed for category type  " + categoryClass + ". Exception: " + e.getMessage(), null);
-//                }
-//            }
-//        }
-//        if (category == null) {
-//            throw new CategoryNotFoundException("Unable to find category on Feed ", null);
-//        }
-//        return category;
-//    }
+    
+    public Optional<ChangeComment> getVersionComment() {
+        return Optional.ofNullable(JcrUtil.getJcrObject(getNode(), VERSION_COMMENT, JcrChangeComment.class));
+    }
+    
+    public void setVersionComment(String comment) {
+        // First remove any existing comment so the timestamp and user gets correctly set.
+        JcrUtil.removeNode(getNode(), VERSION_COMMENT);
+        Node chgNode = JcrUtil.getOrCreateNode(getNode(), VERSION_COMMENT, JcrChangeComment.NODE_TYPE);
+        new JcrChangeComment(chgNode, comment != null ? comment : "");
+    }
 
     protected JcrFeed getParentFeed() {
         return this.feed;

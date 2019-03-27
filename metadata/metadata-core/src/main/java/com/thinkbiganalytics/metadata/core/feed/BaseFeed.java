@@ -1,5 +1,8 @@
 package com.thinkbiganalytics.metadata.core.feed;
 
+import com.thinkbiganalytics.metadata.api.catalog.DataSet;
+import com.thinkbiganalytics.metadata.api.catalog.DataSet.ID;
+
 /*-
  * #%L
  * thinkbig-metadata-core
@@ -31,11 +34,11 @@ import com.thinkbiganalytics.metadata.api.feed.FeedSource;
 import com.thinkbiganalytics.metadata.api.feed.InitializationStatus;
 import com.thinkbiganalytics.metadata.api.feed.reindex.HistoryReindexingStatus;
 import com.thinkbiganalytics.metadata.api.security.HadoopSecurityGroup;
-import com.thinkbiganalytics.metadata.api.security.RoleMembership;
 import com.thinkbiganalytics.metadata.api.template.FeedManagerTemplate;
 import com.thinkbiganalytics.metadata.sla.api.ServiceLevelAgreement;
 import com.thinkbiganalytics.metadata.sla.api.ServiceLevelAssessment;
 import com.thinkbiganalytics.security.action.AllowedActions;
+import com.thinkbiganalytics.security.role.RoleMembership;
 
 import org.joda.time.DateTime;
 
@@ -236,9 +239,31 @@ public class BaseFeed implements Feed {
     }
 
     @Override
+    public FeedSource getSource(DataSet.ID id) {
+        for (FeedSource dest : this.sources) {
+            if (dest.getDataSet().isPresent() && dest.getDataSet().get().getId().equals(id)) {
+                return dest;
+            }
+        }
+
+        return null;
+    }
+
+    @Override
+    public FeedDestination getDestination(DataSet.ID id) {
+        for (FeedDestination dest : this.destinations) {
+            if (dest.getDataSet().isPresent() && dest.getDataSet().get().getId().equals(id)) {
+                return dest;
+            }
+        }
+
+        return null;
+    }
+
+    @Override
     public FeedDestination getDestination(Datasource.ID id) {
         for (FeedDestination dest : this.destinations) {
-            if (dest.getDatasource().getId().equals(id)) {
+            if (dest.getDatasource().isPresent() && dest.getDatasource().get().getId().equals(id)) {
                 return dest;
             }
         }
@@ -253,46 +278,32 @@ public class BaseFeed implements Feed {
     }
 
     @Override
-    public FeedPrecondition getPrecondition() {
-        return this.precondition;
+    public Optional<FeedPrecondition> getPrecondition() {
+        return Optional.ofNullable(this.precondition);
     }
 
     public FeedSource addSource(Datasource ds) {
-        return addSource(ds, null);
-    }
-
-    public FeedSource addSource(Datasource ds, ServiceLevelAgreement agreement) {
-        Source src = new Source(ds, agreement);
+        Source src = new Source(ds);
         this.sources.add(src);
         return src;
     }
 
     @Override
     public FeedSource getSource(Datasource.ID id) {
-        for (FeedSource src : this.sources) {
-            if (src.getFeed().getId().equals(id)) {
-                return src;
+        for (FeedSource dest : this.sources) {
+            if (dest.getDatasource().isPresent() && dest.getDatasource().get().getId().equals(id)) {
+                return dest;
             }
         }
 
         return null;
     }
-//
-//    @Override
-//    public FeedSource getSource(FeedSource.ID id) {
-//        return this.sources.get(id);
-//    }
 
     public FeedDestination addDestination(Datasource ds) {
         FeedDestination dest = new Destination(ds);
         this.destinations.add(dest);
         return dest;
     }
-//
-//    @Override
-//    public FeedDestination getDestination(FeedDestination.ID id) {
-//        return this.destinations.get(id);
-//    }
 
     public FeedPrecondition setPrecondition(ServiceLevelAgreement sla) {
         this.precondition = new FeedPreconditionImpl(this, sla);
@@ -444,6 +455,14 @@ public class BaseFeed implements Feed {
         // TODO Auto-generated method stub
         return null;
     }
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.security.AccessControlled#getLogId()
+     */
+    @Override
+    public String getAuditId() {
+        return "Feed:" + getId();
+    }
 
     /* (non-Javadoc)
      * @see com.thinkbiganalytics.metadata.api.security.AccessControlled#getRoleAssignments()
@@ -512,6 +531,9 @@ public class BaseFeed implements Feed {
         // TODO Auto-generated method stub
 
     }
+
+
+
 
     @Override
     public Principal getOwner() {
@@ -606,10 +628,15 @@ public class BaseFeed implements Feed {
 
     private abstract class Data implements FeedConnection {
 
-        private Datasource dataset;
+        private Datasource datasource;
+        private DataSet dataSet;
 
         public Data(Datasource ds) {
-            this.dataset = ds;
+            this.datasource = ds;
+        }
+        
+        public Data(DataSet ds) {
+            this.dataSet = ds;
         }
 
         @Override
@@ -618,49 +645,135 @@ public class BaseFeed implements Feed {
         }
 
         @Override
-        public Datasource getDatasource() {
-            return this.dataset;
+        public Optional<Datasource> getDatasource() {
+            return Optional.ofNullable(this.datasource);
+        }
+        
+        @Override
+        public Optional<DataSet> getDataSet() {
+            return Optional.ofNullable(this.dataSet);
         }
     }
 
     private class Source extends Data implements FeedSource {
 
-        private static final long serialVersionUID = -2407190619538717445L;
-
-        //        private SourceId id;
-        private ServiceLevelAgreement agreement;
-
-        public Source(Datasource ds, ServiceLevelAgreement agreement) {
+        public Source(Datasource ds) {
             super(ds);
-//            this.id = new SourceId();
-            this.agreement = agreement;
         }
-//
-//        @Override
-//        public ID getId() {
-//            return this.id;
-//        }
+        
+        public Source(DataSet ds) {
+            super(ds);
+        }
 
         @Override
-        public ServiceLevelAgreement getAgreement() {
-            return this.agreement;
+        public boolean isSample() {
+            return false;
         }
     }
 
     private class Destination extends Data implements FeedDestination {
 
-        private static final long serialVersionUID = -6990911423133789381L;
-
-//        private DestinationId id;
-
         public Destination(Datasource ds) {
             super(ds);
-//            this.id = new DestinationId();
         }
-//
-//        @Override
-//        public ID getId() {
-//            return this.id;
-//        }
+        
+        public Destination(DataSet ds) {
+            super(ds);
+        }
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.Propertied#getProperty(java.lang.String)
+     */
+    @Override
+    public <T> T getProperty(String name) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.SystemEntity#getSystemName()
+     */
+    @Override
+    public String getSystemName() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.SystemEntity#setSystemName(java.lang.String)
+     */
+    @Override
+    public void setSystemName(String name) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.SystemEntity#getTitle()
+     */
+    @Override
+    public String getTitle() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.SystemEntity#setTitle(java.lang.String)
+     */
+    @Override
+    public void setTitle(String title) {
+        // TODO Auto-generated method stub
+        
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.Auditable#getCreatedBy()
+     */
+    @Override
+    public String getCreatedBy() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.Auditable#getModifiedBy()
+     */
+    @Override
+    public String getModifiedBy() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.Taggable#hasTag(java.lang.String)
+     */
+    @Override
+    public boolean hasTag(String tag) {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.Taggable#addTag(java.lang.String)
+     */
+    @Override
+    public Set<String> addTag(String tag) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.Taggable#removeTag(java.lang.String)
+     */
+    @Override
+    public Set<String> removeTag(String tag) {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public boolean isMissingRequiredProperties(@Nonnull Set<UserFieldDescriptor> userFields) {
+        return false;
     }
 }

@@ -11,7 +11,7 @@
   <parent>
     <artifactId>kylo-spark-shell-service</artifactId>
     <groupId>com.thinkbiganalytics.kylo</groupId>
-    <version>0.9.1-SNAPSHOT</version>
+    <version>0.10.1-SNAPSHOT</version>
   </parent>
   <properties>
     <plugin.license.parentRelative>../../../</plugin.license.parentRelative>
@@ -27,6 +27,10 @@
       <groupId>com.google.code.findbugs</groupId>
       <artifactId>jsr305</artifactId>
     </dependency>
+    <dependency>
+      <groupId>com.github.ben-manes.caffeine</groupId>
+      <artifactId>caffeine</artifactId>
+    </dependency>
 
     <!-- Apache Commons -->
     <dependency>
@@ -35,6 +39,21 @@
     </dependency>
 
     <!-- Kylo -->
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-catalog-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-metadata-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-feed-manager-controller</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.thinkbiganalytics.kylo</groupId>
       <artifactId>kylo-cluster-manager-api</artifactId>
@@ -47,7 +66,7 @@
     </dependency>
     <dependency>
       <groupId>com.thinkbiganalytics.kylo</groupId>
-      <artifactId>kylo-commons-util</artifactId>
+      <artifactId>kylo-commons-util7</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>
@@ -56,10 +75,11 @@
       <version>${project.version}</version>
     </dependency>
 
-    <!-- Spark -->
+    <!-- plugin-shared here ensures it is installed to kylo-services/lib by tarball -->
     <dependency>
-      <groupId>org.apache.spark</groupId>
-      <artifactId>spark-launcher_${scala.binary.version}</artifactId>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-commons-spark-shell-plugin-shared</artifactId>
+      <version>${project.version}</version>
     </dependency>
 
     <!-- Spring -->

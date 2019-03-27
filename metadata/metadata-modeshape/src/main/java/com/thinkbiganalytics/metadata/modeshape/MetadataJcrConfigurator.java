@@ -172,6 +172,11 @@ public class MetadataJcrConfigurator {
             session.getRootNode().addNode("metadata/security/prototypes/datasource", "tba:allowedActions");
         }
 
+        //ensure the connector exist in prototypes
+        if (!session.getRootNode().hasNode("metadata/security/prototypes/connector")) {
+            session.getRootNode().addNode("metadata/security/prototypes/connector", "tba:allowedActions");
+        }
+
         if (!session.getRootNode().hasNode("metadata/security/roles")) {
             session.getRootNode().addNode("metadata/security/roles", "tba:rolesFolder");
         }
@@ -182,6 +187,10 @@ public class MetadataJcrConfigurator {
 
         if (!session.getRootNode().hasNode("metadata/projects")) {
             session.getRootNode().getNode("metadata").addNode("projects");
+        }
+        
+        if (!session.getRootNode().hasNode("metadata/catalog")) {
+            session.getRootNode().getNode("metadata").addNode("catalog", "tba:catalogFolder");
         }
 
         //ensure the role paths exist for the entities

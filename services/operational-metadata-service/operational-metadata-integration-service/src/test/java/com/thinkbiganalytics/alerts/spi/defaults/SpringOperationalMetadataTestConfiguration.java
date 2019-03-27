@@ -20,6 +20,9 @@ package com.thinkbiganalytics.alerts.spi.defaults;
  */
 import com.thinkbiganalytics.feedmgr.nifi.cache.NifiFlowCache;
 import com.thinkbiganalytics.jms.JmsService;
+import com.thinkbiganalytics.kylo.catalog.ConnectorPluginManager;
+import com.thinkbiganalytics.metadata.api.MetadataAccess;
+import com.thinkbiganalytics.metadata.api.PostMetadataConfigAction;
 import com.thinkbiganalytics.nifi.rest.client.NiFiRestClient;
 import com.thinkbiganalytics.nifi.rest.model.NiFiPropertyDescriptorTransform;
 import com.thinkbiganalytics.security.AccessController;
@@ -27,16 +30,27 @@ import com.thinkbiganalytics.servicemonitor.ServiceMonitorRepository;
 
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.web.WebMvcAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean;
 
 import javax.jms.ConnectionFactory;
+import javax.validation.ValidatorFactory;
 
 /**
  * Created by sr186054 on 8/10/17.
  */
 @Configuration
 public class SpringOperationalMetadataTestConfiguration {
+    
+    @Bean
+    @Primary
+    public ConnectorPluginManager mockConnectorPluginManager() {
+        return Mockito.mock(ConnectorPluginManager.class);
+    }
 
     @Bean
     public JmsService jmsService(){

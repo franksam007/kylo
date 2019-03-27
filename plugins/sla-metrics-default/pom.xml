@@ -4,7 +4,7 @@
   <parent>
     <groupId>com.thinkbiganalytics.kylo.plugins</groupId>
     <artifactId>kylo-plugins</artifactId>
-    <version>0.9.1-SNAPSHOT</version>
+    <version>0.10.1-SNAPSHOT</version>
   </parent>
   <properties>
     <plugin.license.parentRelative>../../</plugin.license.parentRelative>
@@ -29,11 +29,17 @@
       <scope>test</scope>
       <type>pom</type>
     </dependency>
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-commons-test</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
 
     <!-- Data Lake dependencies -->
     <dependency>
       <groupId>com.thinkbiganalytics.kylo</groupId>
-      <artifactId>kylo-commons-util</artifactId>
+      <artifactId>kylo-commons-util7</artifactId>
       <version>${project.version}</version>
     </dependency>
     <dependency>

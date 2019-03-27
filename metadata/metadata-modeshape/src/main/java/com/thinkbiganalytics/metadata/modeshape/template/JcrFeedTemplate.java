@@ -30,19 +30,25 @@ import javax.jcr.RepositoryException;
 
 import com.thinkbiganalytics.metadata.api.feed.Feed;
 import com.thinkbiganalytics.metadata.api.feed.security.FeedOpsAccessControlProvider;
+import com.thinkbiganalytics.metadata.api.template.ChangeComment;
 import com.thinkbiganalytics.metadata.api.template.FeedManagerTemplate;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
-import com.thinkbiganalytics.metadata.modeshape.common.AbstractJcrAuditableSystemEntity;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.IconableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.SystemEntityMixin;
 import com.thinkbiganalytics.metadata.modeshape.feed.JcrFeed;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedActions;
 import com.thinkbiganalytics.metadata.modeshape.security.mixin.AccessControlledMixin;
+import com.thinkbiganalytics.metadata.modeshape.support.JcrLockingUtil;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrPropertyUtil;
+import com.thinkbiganalytics.metadata.modeshape.support.JcrUtil;
 import com.thinkbiganalytics.metadata.modeshape.template.security.JcrTemplateAllowedActions;
+import org.joda.time.DateTime;
 
 /**
  */
-public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements FeedManagerTemplate, AccessControlledMixin {
+public class JcrFeedTemplate extends JcrEntity<FeedManagerTemplate.ID> implements FeedManagerTemplate, AuditableMixin, IconableMixin, SystemEntityMixin, AccessControlledMixin {
 
     public static final String NODE_TYPE = "tba:feedTemplate";
 
@@ -50,8 +56,6 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
     public static final String DEFINE_TABLE = "tba:defineTable";
     public static final String DATA_TRANSFORMATION = "tba:dataTransformation";
     public static final String ALLOW_PRECONDITIONS = "tba:allowPreconditions";
-    public static final String ICON = "tba:icon";
-    public static final String ICON_COLOR = "tba:iconColor";
     public static final String NIFI_TEMPLATE_ID = "tba:nifiTemplateId";
     public static final String FEEDS = "tba:feeds";
     public static final String ORDER = "tba:order";
@@ -62,15 +66,17 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
 
     public static final String TEMPLATE_TABLE_OPTION = "tba:templateTableOption";
 
+    public static final String CHANGE_COMMENTS = "tba:changeComments";
+
 
     public JcrFeedTemplate(Node node) {
-        super(node);
+        super(JcrLockingUtil.createAutoLockProxy(node, true));
     }
 
     @Override
     public FeedTemplateId getId() {
         try {
-            return new JcrFeedTemplate.FeedTemplateId(this.node.getIdentifier());
+            return new JcrFeedTemplate.FeedTemplateId(getNode().getIdentifier());
         } catch (RepositoryException e) {
             throw new MetadataRepositoryException("Failed to retrieve the entity id", e);
         }
@@ -99,7 +105,7 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
 
     @Override
     public boolean isDefineTable() {
-        return getProperty(DEFINE_TABLE, Boolean.class);
+        return getProperty(DEFINE_TABLE, Boolean.class, Boolean.FALSE);
     }
 
     @Override
@@ -109,7 +115,7 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
 
     @Override
     public boolean isDataTransformation() {
-        return getProperty(DATA_TRANSFORMATION, Boolean.class);
+        return getProperty(DATA_TRANSFORMATION, Boolean.class, Boolean.FALSE);
     }
 
     @Override
@@ -119,32 +125,12 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
 
     @Override
     public boolean isAllowPreconditions() {
-        return getProperty(ALLOW_PRECONDITIONS, Boolean.class);
+        return getProperty(ALLOW_PRECONDITIONS, Boolean.class, Boolean.FALSE);
     }
 
     @Override
     public void setAllowPreconditions(boolean allowedPreconditions) {
         setProperty(ALLOW_PRECONDITIONS, allowedPreconditions);
-    }
-
-    @Override
-    public String getIcon() {
-        return getProperty(ICON, String.class);
-    }
-
-    @Override
-    public void setIcon(String icon) {
-        setProperty(ICON, icon);
-    }
-
-    @Override
-    public String getIconColor() {
-        return getProperty(ICON_COLOR, String.class);
-    }
-
-    @Override
-    public void setIconColor(String iconColor) {
-        setProperty(ICON_COLOR, iconColor);
     }
 
     @Override
@@ -180,7 +166,7 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
 
     public List<Feed> getFeeds() {
         List<Feed> feeds = new ArrayList<>();
-        Set<Node> feedNodes = JcrPropertyUtil.getSetProperty(this.node, FEEDS);
+        Set<Node> feedNodes = JcrPropertyUtil.getSetProperty(getNode(), FEEDS);
 
         for (Node depNode : feedNodes) {
             // TODO: note that feeds instances returned here will not be able to update feed ops 
@@ -195,14 +181,14 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
         JcrFeed jcrFeed = (JcrFeed) feed;
         Node feedNode = jcrFeed.getNode();
 
-        return JcrPropertyUtil.addToSetProperty(this.node, FEEDS, feedNode, true);
+        return JcrPropertyUtil.addToSetProperty(getNode(), FEEDS, feedNode, true);
     }
 
     public boolean removeFeed(Feed feed) {
         JcrFeed jcrFeed = (JcrFeed) feed;
         Node feedNode = jcrFeed.getNode();
 
-        return JcrPropertyUtil.removeFromSetProperty(this.node, FEEDS, feedNode);
+        return JcrPropertyUtil.removeFromSetProperty(getNode(), FEEDS, feedNode);
     }
 
     public Long getOrder() {
@@ -215,10 +201,7 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
 
     @Override
     public boolean isStream() {
-        if (!hasProperty(IS_STREAM)) {
-            setStream(false);
-        }
-        return getProperty(IS_STREAM, Boolean.class, true);
+        return getProperty(IS_STREAM, Boolean.class, Boolean.FALSE);
     }
 
     @Override
@@ -230,10 +213,33 @@ public class JcrFeedTemplate extends AbstractJcrAuditableSystemEntity implements
     public Class<? extends JcrAllowedActions> getJcrAllowedActionsType() {
         return JcrTemplateAllowedActions.class;
     }
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.security.AccessControlled#getLogId()
+     */
+    @Override
+    public String getAuditId() {
+        return "Template:" + getId();
+    }
 
     @Override
     public String getTemplateTableOption() {
         return getProperty(TEMPLATE_TABLE_OPTION, String.class);
+    }
+
+    @Override
+    public List<ChangeComment> getChangeComments() {
+        return new ArrayList<>(JcrUtil.getJcrObjects(getNode(), CHANGE_COMMENTS, JcrChangeComment.class));
+    }
+
+    @Override
+    public void clearChangeComments() {
+        JcrUtil.getIterableChildren(getNode(), CHANGE_COMMENTS).forEach(node -> JcrUtil.removeNode(node));
+    }
+
+    @Override
+    public ChangeComment addChangeComment(String comment, DateTime dateTime) {
+        return JcrUtil.addJcrObject(getNode(), CHANGE_COMMENTS, JcrChangeComment.NODE_TYPE, JcrChangeComment.class, comment, dateTime);
     }
 
     @Override

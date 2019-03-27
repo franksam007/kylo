@@ -4,7 +4,7 @@ package com.thinkbiganalytics.metadata.api.datasource;
  * #%L
  * kylo-metadata-api
  * %%
- * Copyright (C) 2017 ThinkBig Analytics
+ * Copyright (C) 2017 - 2018 ThinkBig Analytics, a Teradata Company
  * %%
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,7 @@ package com.thinkbiganalytics.metadata.api.datasource;
  * #L%
  */
 
-import com.thinkbiganalytics.metadata.api.security.AccessControlled;
+import com.thinkbiganalytics.security.AccessControlled;
 
 import java.util.Optional;
 
@@ -30,13 +30,6 @@ import javax.annotation.Nonnull;
  * Defines a data source managed through Kylo by a user.
  */
 public interface UserDatasource extends Datasource, AccessControlled {
-
-    /**
-     * Sets the description of this data source.
-     *
-     * @param description the description
-     */
-    void setDescription(@Nonnull String description);
 
     /**
      * Gets the additional properties for this data source.
@@ -67,25 +60,5 @@ public interface UserDatasource extends Datasource, AccessControlled {
      * @param type the type
      */
     void setType(@Nonnull String type);
-
-    /**
-     * @return icon name
-     */
-    String getIcon();
-
-    /**
-     * @param icon icon name
-     */
-    void setIcon(String icon);
-
-    /**
-     * @return icon colour
-     */
-    String getIconColor();
-
-    /**
-     * @param iconColor icon colour
-     */
-    void setIconColor(String iconColor);
 
 }

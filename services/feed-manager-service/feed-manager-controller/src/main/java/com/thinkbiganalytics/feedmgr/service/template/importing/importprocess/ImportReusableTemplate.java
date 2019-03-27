@@ -26,6 +26,7 @@ import com.thinkbiganalytics.feedmgr.nifi.cache.NifiFlowCache;
 import com.thinkbiganalytics.feedmgr.rest.ImportComponent;
 import com.thinkbiganalytics.feedmgr.rest.ImportSection;
 import com.thinkbiganalytics.feedmgr.rest.model.ImportComponentOption;
+import com.thinkbiganalytics.feedmgr.rest.model.ImportProperty;
 import com.thinkbiganalytics.feedmgr.rest.model.ImportTemplateOptions;
 import com.thinkbiganalytics.feedmgr.rest.model.RemoteProcessGroupInputPort;
 import com.thinkbiganalytics.feedmgr.rest.model.ReusableTemplateConnectionInfo;
@@ -37,12 +38,14 @@ import com.thinkbiganalytics.feedmgr.service.template.RegisteredTemplateService;
 import com.thinkbiganalytics.feedmgr.service.template.RemoteInputPortService;
 import com.thinkbiganalytics.feedmgr.service.template.importing.model.ImportTemplate;
 import com.thinkbiganalytics.feedmgr.service.template.importing.model.NiFiTemplateImport;
+import com.thinkbiganalytics.feedmgr.util.ImportUtil;
 import com.thinkbiganalytics.nifi.feedmgr.ReusableTemplateCreationCallback;
 import com.thinkbiganalytics.nifi.feedmgr.TemplateCreationHelper;
 import com.thinkbiganalytics.nifi.rest.NiFiObjectCache;
 import com.thinkbiganalytics.nifi.rest.client.LegacyNifiRestClient;
 import com.thinkbiganalytics.nifi.rest.client.NifiClientRuntimeException;
 import com.thinkbiganalytics.nifi.rest.model.NiFiClusterSummary;
+import com.thinkbiganalytics.nifi.rest.model.NiFiPropertyDescriptorTransform;
 import com.thinkbiganalytics.nifi.rest.model.NifiError;
 import com.thinkbiganalytics.nifi.rest.model.NifiProcessGroup;
 import com.thinkbiganalytics.nifi.rest.model.NifiProperty;
@@ -51,6 +54,7 @@ import com.thinkbiganalytics.nifi.rest.support.NifiConnectionUtil;
 import com.thinkbiganalytics.nifi.rest.support.NifiConstants;
 import com.thinkbiganalytics.nifi.rest.support.NifiFlowUtil;
 import com.thinkbiganalytics.nifi.rest.support.NifiProcessUtil;
+import com.thinkbiganalytics.nifi.rest.support.NifiPropertyUtil;
 import com.thinkbiganalytics.security.AccessController;
 
 import org.apache.commons.lang3.StringUtils;
@@ -113,6 +117,9 @@ public class ImportReusableTemplate extends AbstractImportTemplateRoutine implem
 
     @Inject
     private NiFiObjectCache niFiObjectCache;
+
+    @Inject
+    private NiFiPropertyDescriptorTransform propertyDescriptorTransform;
 
     private ProcessGroupFlowDTO reusableTemplateFlow;
 
@@ -269,6 +276,7 @@ public class ImportReusableTemplate extends AbstractImportTemplateRoutine implem
 
     public boolean importTemplate() {
         boolean validReusableTemplate = importIntoNiFiAndCreateInstance();
+        templateConnectionUtil.ensureReusableTemplateProcessGroup();
 
         //Check and set the Remote PRocess group settings.
         //use this later to determine if we need to create NiFi Flow input ports connected to this template
@@ -293,6 +301,11 @@ public class ImportReusableTemplate extends AbstractImportTemplateRoutine implem
         }
 
         return validReusableTemplate;
+    }
+
+    public boolean importIntoNiFiAndCreateInstance() {
+        boolean valid = super.importIntoNiFiAndCreateInstance();
+        return valid;
     }
 
     @Override
@@ -398,6 +411,16 @@ public class ImportReusableTemplate extends AbstractImportTemplateRoutine implem
             }
         }
         importTemplate.setTemplateResults(newTemplateInstance);
+
+        if(newTemplateInstance.isSuccess() && newTemplateInstance.getProcessGroupEntity() != null) {
+
+            int templateValidationErrorCount = newTemplateInstance.getProcessGroupEntity().getContents().getProcessors()
+                .stream().filter(p -> p.getValidationErrors() != null)
+                .collect(Collectors.toSet()).size();
+
+            newTemplateInstance.setSuccess(ensureSensitiveProperties(newTemplateInstance, templateValidationErrorCount));
+
+        }
         return newTemplateInstance;
 
     }
@@ -1080,6 +1103,27 @@ public class ImportReusableTemplate extends AbstractImportTemplateRoutine implem
          */
         @Override
         public void beforeMarkAsRunning(String templateName, ProcessGroupDTO processGroupDTO) {
+            //check and update sensitive values
+            ImportComponentOption option = importTemplateOptions.findImportComponentOption(ImportComponent.REUSABLE_TEMPLATE);
+
+            List<NifiProperty> modifiedProperties = new ArrayList<>();
+            NifiPropertyUtil.getProperties(processGroupDTO, propertyDescriptorTransform).stream().filter(property -> property.isSensitive()).forEach(property -> {
+
+                ImportProperty
+                    userSuppliedValue =
+                    option.getProperties().stream()
+                        .filter(userProperty -> property.getProcessorName().equalsIgnoreCase(userProperty.getProcessorName())
+                                                && property.getKey().equalsIgnoreCase(userProperty.getPropertyKey()))
+                        .findFirst().orElse(null);
+
+                if (userSuppliedValue != null) {
+                    property.setValue(userSuppliedValue.getPropertyValue());
+                    modifiedProperties.add(property);
+                }
+
+            });
+            nifiRestClient.updateProcessGroupProperties(modifiedProperties);
+
             //update the cache
             Collection<ProcessorDTO> processors = NifiProcessUtil.getProcessors(processGroupDTO);
             nifiFlowCache.updateProcessorIdNames(templateName, processors);
@@ -1155,6 +1199,33 @@ public class ImportReusableTemplate extends AbstractImportTemplateRoutine implem
 
     }
 
+    //Ensure sensitive properties have a value, otherwise prompt in UI for values
+    private boolean ensureSensitiveProperties(NifiProcessGroup newTemplateInstance, int templateValidationErrorCount) {
+
+        List<NifiProperty> allProperties = NifiPropertyUtil.getProperties(newTemplateInstance.getProcessGroupEntity(), propertyDescriptorTransform);
+        List<NifiProperty> sensitiveProperties = allProperties.stream().filter(property -> property.isSensitive() && property.isRequired()).collect(Collectors.toList());
+        ImportUtil.addToImportOptionsSensitiveProperties(importTemplateOptions, sensitiveProperties, ImportComponent.REUSABLE_TEMPLATE);
+        boolean valid = true;
+
+        ImportComponentOption option = importTemplate.getImportOptions().findImportComponentOption(ImportComponent.REUSABLE_TEMPLATE);
+
+        if (!option.getProperties().isEmpty() && option.getProperties().stream().anyMatch(importProperty -> StringUtils.isBlank(importProperty.getPropertyValue()))) {
+            importTemplate.setSuccess(false);
+            String msg = "Unable to import Template. Additional properties to be supplied before importing.";
+            importTemplate.getTemplateResults().addError(NifiError.SEVERITY.WARN, msg, "");
+            option.getErrorMessages().add(msg);
+            valid = false;
+        } else if (templateValidationErrorCount > 0) {
+            //Case where no sensitive properties are marked as required by the processor, but internally the processor throws validation errors (internal processor logic)
+            //Template import will not fail. Provide information to the the user.
+            String msg = "There are " + templateValidationErrorCount + " validation errors in NiFi for the imported template. Please resolve them in NiFi.";
+            importTemplate.getTemplateResults().addError(NifiError.SEVERITY.WARN, msg, "");
+            //Commenting the below since UI does not use it, and ImportTemplateArchive#importTemplate() fails if there is an error message on the component section.
+            //option.getErrorMessages().add(msg);
+        }
+
+        return valid;
+    }
 
 }
 

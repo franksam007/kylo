@@ -2,6 +2,7 @@ import {ProfileOutputRow} from "./profile-output-row";
 import {QueryResultColumn} from "./query-result-column";
 import {TransformValidationResult} from "./transform-validation-result";
 import {ColumnSort} from "./column-sort";
+import {JoinDataset} from "./join-dataset.model";
 
 /**
  * Maintains the state of a Spark script for a single transformation.
@@ -64,4 +65,8 @@ export interface ScriptState<T> {
     tableState: number;
 
     sort:ColumnSort;
+
+    inactive: boolean;
+
+    joinDataSet:JoinDataset;
 }

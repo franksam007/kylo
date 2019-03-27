@@ -23,8 +23,9 @@ package com.thinkbiganalytics.metadata.modeshape.user;
 import com.thinkbiganalytics.metadata.api.user.User;
 import com.thinkbiganalytics.metadata.api.user.UserGroup;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
-import com.thinkbiganalytics.metadata.modeshape.common.AbstractJcrAuditableSystemEntity;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.SystemEntityMixin;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrPropertyUtil;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrUtil;
 import com.thinkbiganalytics.security.GroupPrincipal;
@@ -32,8 +33,6 @@ import com.thinkbiganalytics.security.GroupPrincipal;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
-import java.net.URLDecoder;
 import java.security.Principal;
 import java.util.Iterator;
 import java.util.Set;
@@ -49,7 +48,7 @@ import javax.jcr.RepositoryException;
 /**
  *
  */
-public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements UserGroup {
+public class JcrUserGroup extends JcrEntity<UserGroup.ID> implements UserGroup, AuditableMixin, SystemEntityMixin {
 
     /**
      * JCR node type for users
@@ -60,11 +59,6 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
      * The groups property from the mixin tba:userGroupable
      */
     public static final String GROUPS = "tba:groups";
-
-    /**
-     * Encoding for properties
-     */
-    static final String ENCODING = "UTF-8";
 
     /**
      * Name of the {@code enabled} property
@@ -85,7 +79,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
     @Override
     public UserGroupId getId() {
         try {
-            return new UserGroupId(this.node.getIdentifier());
+            return new UserGroupId(getNode().getIdentifier());
         } catch (RepositoryException e) {
             throw new MetadataRepositoryException("Failed to retrieve the entity id", e);
         }
@@ -94,11 +88,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
     @Nonnull
     @Override
     public String getSystemName() {
-        try {
-            return URLDecoder.decode(JcrPropertyUtil.getName(this.node), ENCODING);
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("Unsupported encoding for system name of user: " + this.node, e);
-        }
+        return JcrPropertyUtil.getName(getNode());
     }
 
     /* (non-Javadoc)
@@ -106,7 +96,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
      */
     @Override
     public boolean isEnabled() {
-        return getProperty(ENABLED, true);
+        return getProperty(ENABLED, Boolean.TRUE);
     }
 
     /* (non-Javadoc)
@@ -140,7 +130,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
     @Override
     public boolean addUser(@Nonnull User user) {
         JcrUser jcrUser = (JcrUser) user;
-        return JcrPropertyUtil.addToSetProperty(jcrUser.getNode(), GROUPS, this.node, true);
+        return JcrPropertyUtil.addToSetProperty(jcrUser.getNode(), GROUPS, getNode(), true);
     }
 
     /* (non-Javadoc)
@@ -149,7 +139,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
     @Override
     public boolean removeUser(@Nonnull User user) {
         JcrUser jcrUser = (JcrUser) user;
-        return JcrPropertyUtil.removeFromSetProperty(jcrUser.getNode(), GROUPS, this.node);
+        return JcrPropertyUtil.removeFromSetProperty(jcrUser.getNode(), GROUPS, getNode());
     }
 
     /* (non-Javadoc)
@@ -158,7 +148,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
     @Nonnull
     @Override
     public Set<UserGroup> getContainingGroups() {
-        return streamContainingGroupNodes(this.node)
+        return streamContainingGroupNodes(getNode())
             .map(node -> (UserGroup) JcrUtil.toJcrObject(node, JcrUserGroup.NODE_TYPE, JcrUserGroup.class))
             .collect(Collectors.toSet());
     }
@@ -168,7 +158,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
      */
     @Override
     public Set<UserGroup> getAllContainingGroups() {
-        return streamAllContainingGroupNodes(this.node)
+        return streamAllContainingGroupNodes(getNode())
             .map(node -> JcrUtil.toJcrObject(node, JcrUserGroup.NODE_TYPE, JcrUserGroup.class))
             .collect(Collectors.toSet());
     }
@@ -196,7 +186,7 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
     @Override
     public boolean addGroup(@Nonnull UserGroup group) {
         JcrUserGroup jcrGrp = (JcrUserGroup) group;
-        return JcrPropertyUtil.addToSetProperty(jcrGrp.getNode(), GROUPS, this.node, true);
+        return JcrPropertyUtil.addToSetProperty(jcrGrp.getNode(), GROUPS, getNode(), true);
     }
 
     /* (non-Javadoc)
@@ -205,16 +195,16 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
     @Override
     public boolean removeGroup(@Nonnull UserGroup group) {
         JcrUserGroup jcrGrp = (JcrUserGroup) group;
-        return JcrPropertyUtil.removeFromSetProperty(jcrGrp.getNode(), GROUPS, this.node);
+        return JcrPropertyUtil.removeFromSetProperty(jcrGrp.getNode(), GROUPS, getNode());
     }
 
     /* (non-Javadoc)
      * @see com.thinkbiganalytics.metadata.api.user.UserGroup#getPrincial()
      */
     @Override
-    public GroupPrincipal getPrincial() {
+    public GroupPrincipal getPrincipal() {
         Set<Principal> members = StreamSupport.stream(getGroups().spliterator(), false)
-            .map(g -> g.getPrincial())
+            .map(g -> g.getPrincipal())
             .collect(Collectors.toSet());
 
         return new GroupPrincipal(getSystemName(), members);
@@ -233,9 +223,9 @@ public class JcrUserGroup extends AbstractJcrAuditableSystemEntity implements Us
             @SuppressWarnings("unchecked")
             Iterable<Property> propItr = () -> {
                 try {
-                    return (Iterator<Property>) this.node.getWeakReferences();
+                    return (Iterator<Property>) getNode().getWeakReferences();
                 } catch (Exception e) {
-                    throw new MetadataRepositoryException("Failed to retrieve the users in the group node: " + this.node, e);
+                    throw new MetadataRepositoryException("Failed to retrieve the users in the group node: " + getNode(), e);
                 }
             };
 

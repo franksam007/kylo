@@ -100,6 +100,25 @@ public class NiFiObjectCache {
         getReusableTemplateCategoryProcessGroup();
     }
 
+    public void ensureReusableTemplateProcessGroup(){
+        ProcessGroupDTO processGroupToCheck = null;
+
+        if(reusableTemplateCategory != null) {
+            processGroupToCheck = restClient.getNiFiRestClient().processGroups().findById(reusableTemplateCategory.getId(), false, false).orElse(null);
+        }
+            if(processGroupToCheck == null){
+                processGroupToCheck = restClient.getProcessGroupByName("root", reusableTemplateCategoryName);
+            }
+            if (processGroupToCheck == null) {
+                //create it
+                processGroupToCheck = restClient.createProcessGroup("root", reusableTemplateCategoryName);
+            }
+            if(processGroupToCheck != null  && (reusableTemplateCategory == null || processGroupToCheck.getId().equalsIgnoreCase(reusableTemplateCategory.getId()))){
+                reusableTemplateCategory = processGroupToCheck;
+                reusableTemplateProcessGroupId = processGroupToCheck.getId();
+            }
+    }
+
 
     /**
      * returns the 'reusable_templates' process group
@@ -136,7 +155,7 @@ public class NiFiObjectCache {
 
             Optional<ProcessGroupDTO> group = restClient.getNiFiRestClient().processGroups().findByName("root", temporaryInspectionGroupName, false, false);
             if (!group.isPresent()) {
-                temporaryTemplateInspectionGroup = restClient.getNiFiRestClient().processGroups().create("root", temporaryInspectionGroupName);
+                temporaryTemplateInspectionGroup = restClient.getNiFiRestClient().processGroups().create("root", temporaryInspectionGroupName, -230d,-360d);
             } else {
                 temporaryTemplateInspectionGroup = group.get();
             }

@@ -64,7 +64,7 @@ public class JcrUserDatasource extends JcrDatasource implements UserDatasource, 
     /**
      * Name of the details attribute
      */
-    static final String DETAILS = "tba:details";
+    public static final String DETAILS = "tba:details";
 
     /**
      * Mapping from domain type to JCR type
@@ -87,7 +87,7 @@ public class JcrUserDatasource extends JcrDatasource implements UserDatasource, 
     /**
      * Name of the type attribute
      */
-    private static final String TYPE = "tba:type";
+    public static final String TYPE = "tba:type";
     private static final String ICON = "tba:icon";
     private static final String ICON_COLOR = "tba:iconColor";
 
@@ -124,6 +124,14 @@ public class JcrUserDatasource extends JcrDatasource implements UserDatasource, 
     public Class<? extends JcrAllowedActions> getJcrAllowedActionsType() {
         return JcrDatasourceAllowedActions.class;
     }
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.security.AccessControlled#getLogId()
+     */
+    @Override
+    public String getAuditId() {
+        return "User Datasource:" + getId();
+    }
 
     @Override
     public void setName(@Nonnull final String name) {
@@ -139,26 +147,6 @@ public class JcrUserDatasource extends JcrDatasource implements UserDatasource, 
     @Override
     public void setType(@Nonnull final String type) {
         setProperty(TYPE, type);
-    }
-
-    @Override
-    public String getIcon() {
-        return getProperty(ICON, String.class);
-    }
-
-    @Override
-    public void setIcon(final String icon) {
-        setProperty(ICON, icon);
-    }
-
-    @Override
-    public String getIconColor() {
-        return getProperty(ICON_COLOR, String.class);
-    }
-
-    @Override
-    public void setIconColor(final String iconColor) {
-        setProperty(ICON_COLOR, iconColor);
     }
 
     @Nonnull

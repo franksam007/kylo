@@ -1,27 +1,27 @@
 
 import * as angular from 'angular';
 import * as _ from "underscore";
-const moduleName = require('feed-mgr/feeds/define-feed/module-name');
+const moduleName = require('../module-name');
 
-var directive = function (FeedCreationErrorService:any) {
-    return {
-        restrict: "EA",
-        scope: {
-        },
-        templateUrl: 'js/feed-mgr/feeds/define-feed/feed-details/feed-errors-card-header.html',
-        link: function ($scope:any, element:any, attrs:any) {
-
-            $scope.hasFeedCreationErrors = function() {
-                return FeedCreationErrorService.hasErrors();
-            };
-            $scope.showFeedErrorsDialog = FeedCreationErrorService.showErrorDialog;
-
-        }
-
-    };
-}
 export class FeedErrorCardHeader{
+    static readonly $inject = ["$scope","FeedCreationErrorService"];
+    
+    $onInit(){
+        this.ngOnInit();
+    }
 
+    ngOnInit() {
+        this.$scope.hasFeedCreationErrors = () => {
+            return this.FeedCreationErrorService.hasErrors();
+        };
+        this.$scope.showFeedErrorsDialog = this.FeedCreationErrorService.showErrorDialog;
+    }
+    constructor(private $scope:any,private FeedCreationErrorService:any){
+        
+        
+    }
 }
-angular.module(moduleName)
-    .directive('thinkbigFeedErrorsCardHeader', ["FeedCreationErrorService",directive]);
+angular.module(moduleName).
+    component("thinkbigDefineFeedGeneralInfao", {
+        templateUrl: './feed-errors-card-header.html',
+    });

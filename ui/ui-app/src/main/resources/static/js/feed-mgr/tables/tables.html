@@ -21,19 +21,19 @@
 
   <card-layout header-css="filter-header" class="centered">
     <header-section>
-      <div tba-card-filter-header flex layout card-title="vm.cardTitle" page-name="{{vm.pageName}}" view-type="vm.viewType"
+      <tba-card-filter-header flex layout card-title="vm.cardTitle" page-name="{{vm.pageName}}" view-type="vm.viewType"
            sort-options="vm.sortOptions"
            on-selected-option="vm.selectedTableOption"
            additional-options="vm.additionalOptions"
            on-selected-additional-option="vm.selectedAdditionalOption"
            filter-model="vm.filter"
       >
-      </div>
+      </tba-card-filter-header>
     </header-section>
 
     <body-section>
       <div ng-if="vm.loading">
-        <md-progress-linear md-mode="indeterminate"></md-progress-linear>
+        <md-progress-linear class="md-accent" md-mode="indeterminate"></md-progress-linear>
         <span class="md-body-2 layout-padding-left">{{"views.define-feed-mgr-tables.tables" | translate}}</span>
       </div>
       <div ng-hide="vm.viewType != 'list'" ng-show="vm.viewType == 'list' && !vm.loading">
@@ -48,7 +48,7 @@
                                     </span>
 
                 <div layout="row" class="column-title column-title-bottom">
-                  <ng-md-icon icon="grid_on" size="20" hide-xs style="fill:orange">
+                  <ng-md-icon icon="grid_on" size="20" hide-xs class="accent-color">
                   </ng-md-icon>
                   <span>{{"views.define-feed-mgr-tables.tables2" | translate}}</span>
                 </div>

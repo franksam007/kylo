@@ -22,8 +22,10 @@ package com.thinkbiganalytics.metadata.modeshape.project;
 
 import com.thinkbiganalytics.metadata.api.project.Project;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
-import com.thinkbiganalytics.metadata.modeshape.common.AbstractJcrAuditableSystemEntity;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.IconableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.SystemEntityMixin;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedActions;
 import com.thinkbiganalytics.metadata.modeshape.security.mixin.AccessControlledMixin;
 
@@ -34,23 +36,12 @@ import javax.annotation.Nullable;
 import javax.jcr.Node;
 import javax.jcr.RepositoryException;
 
-public class JcrProject extends AbstractJcrAuditableSystemEntity implements Project, AccessControlledMixin {
+public class JcrProject extends JcrEntity<Project.ID> implements Project, AuditableMixin, IconableMixin, SystemEntityMixin, AccessControlledMixin {
 
     /**
      * JCR node type for projects
      */
     public static final String NODE_TYPE = "tba:project";
-
-
-    /**
-     * The icon choice of the user, can be null in Jcr if not previously set
-     */
-    public static String ICON = "tba:icon";
-
-    /**
-     * The icon color choice of the user, can be null in Jcr if not previously set
-     */
-    public static String ICON_COLOR = "tba:iconColor";
 
     /**
      * Name of the {@code containerImage} property
@@ -74,6 +65,12 @@ public class JcrProject extends AbstractJcrAuditableSystemEntity implements Proj
             throw new MetadataRepositoryException("Failed to retrieve the entity id", e);
         }
     }
+    
+    @Override
+    public String getSystemName() {
+        String name = SystemEntityMixin.super.getSystemName();
+        return name != null ? name : getNodeName();
+    }
 
     @Nullable
     @Override
@@ -88,19 +85,8 @@ public class JcrProject extends AbstractJcrAuditableSystemEntity implements Proj
 
     @Override
     @Nullable
-    public String getIconColor() {
-        return super.getProperty(ICON_COLOR, String.class, true);
-    }
-
-    @Override
-    public void setIconColor(String iconColor) {
-        super.setProperty(ICON_COLOR, iconColor);
-    }
-
-    @Override
-    @Nullable
     public String getContainerImage() {
-        return super.getProperty(CONTAINER_IMAGE, String.class, false);
+        return super.getProperty(CONTAINER_IMAGE, String.class);
     }
 
     @Override
@@ -109,19 +95,16 @@ public class JcrProject extends AbstractJcrAuditableSystemEntity implements Proj
     }
 
     @Override
-    @Nullable
-    public String getIcon() {
-        return super.getProperty(ICON, String.class, true);
-    }
-
-    @Override
-    public void setIcon(String icon) {
-        super.setProperty(ICON, icon);
-    }
-
-    @Override
     public Class<? extends JcrAllowedActions> getJcrAllowedActionsType() {
         return JcrProjectAllowedActions.class;
+    }
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.security.AccessControlled#getLogId()
+     */
+    @Override
+    public String getAuditId() {
+        return "Project:" + getId();
     }
 
     public static class ProjectId extends JcrEntity.EntityId implements Project.ID {

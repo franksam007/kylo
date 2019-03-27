@@ -5,7 +5,8 @@ import {Subscription} from "rxjs/Subscription";
 import {moduleName} from "../module-name";
 import {DomainType} from "../../services/DomainTypesService";
 import {DomainTypeDetailsService} from "../services/details.service";
-
+import {AccessControlService} from "../../../services/AccessControlService";
+import "../module-require";
 /**
  * Adds or updates domain types.
  */
@@ -39,7 +40,7 @@ export class DomainTypeDetailsComponent implements OnDestroy, OnInit {
 
     static readonly $inject: string[] = ["$mdDialog", "$mdToast", "AccessControlService", "DomainTypeDetailsService", "DomainTypesService", "StateService"];
 
-    constructor(private $mdDialog: angular.material.IDialogService, private $mdToast: angular.material.IToastService, private AccessControlService: any,
+    constructor(private $mdDialog: angular.material.IDialogService, private $mdToast: angular.material.IToastService, private accessControlService: AccessControlService,
                 private DomainTypeDetailService: DomainTypeDetailsService, private DomainTypesService: any, private StateService: any) {
         this.cancelSubscription = DomainTypeDetailService.cancelled.subscribe(() => this.onCancel());
         this.deleteSubscription = DomainTypeDetailService.deleted.subscribe(() => this.onDelete());
@@ -69,9 +70,9 @@ export class DomainTypeDetailsComponent implements OnDestroy, OnInit {
 
     ngOnInit(): void {
         // Check for edit access
-        this.AccessControlService.getUserAllowedActions()
+        this.accessControlService.getUserAllowedActions()
             .then((actionSet: any) => {
-                this.allowEdit = this.AccessControlService.hasAction(this.AccessControlService.FEEDS_ADMIN, actionSet.actions);
+                this.allowEdit = this.accessControlService.hasAction(AccessControlService.FEEDS_ADMIN, actionSet.actions);
             });
     }
 
@@ -136,11 +137,12 @@ export class DomainTypeDetailsComponent implements OnDestroy, OnInit {
     };
 }
 
-angular.module(moduleName)
+const module = angular.module(moduleName)
     .component("domainTypeDetailsComponent", {
         bindings: {
             model: "<"
         },
         controller: DomainTypeDetailsComponent,
-        templateUrl: "js/feed-mgr/domain-types/details/details.component.html"
+        templateUrl: "./details.component.html"
     });
+export default module;

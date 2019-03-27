@@ -7,17 +7,22 @@
   <parent>
     <groupId>com.thinkbiganalytics.kylo.integrations</groupId>
     <artifactId>kylo-spark-shell-client</artifactId>
-    <version>0.9.1-SNAPSHOT</version>
+    <version>0.10.1-SNAPSHOT</version>
   </parent>
   <properties>
     <plugin.license.parentRelative>../../../../</plugin.license.parentRelative>
     <spark.avro.version>2.0.1</spark.avro.version>
-    <spark.csv.version>1.5.0</spark.csv.version>
   </properties>
 
   <artifactId>kylo-spark-shell-client-v1</artifactId>
 
   <dependencies>
+    <dependency>
+      <groupId>com.fasterxml.jackson.dataformat</groupId>
+      <artifactId>jackson-dataformat-xml</artifactId>
+      <scope>provided</scope>
+    </dependency>
+
     <!-- Hadoop dependencies -->
     <dependency>
       <groupId>org.apache.hadoop</groupId>
@@ -33,6 +38,11 @@
     </dependency>
 
     <!--Kylo dependencies -->
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-commons-spark-livy-${scala.binary.version}</artifactId>
+      <version>${project.version}</version>
+    </dependency>
     <dependency>
       <groupId>com.thinkbiganalytics.kylo</groupId>
       <artifactId>kylo-commons-hive</artifactId>
@@ -91,6 +101,34 @@
       </exclusions>
     </dependency>
 
+
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo.integrations</groupId>
+      <artifactId>kylo-spark-file-metadata-spark-v1</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-api</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-log4j12</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.slf4j</groupId>
+          <artifactId>slf4j-ext</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+
+    <dependency>
+    <groupId>com.thinkbiganalytics.kylo.integrations</groupId>
+      <artifactId>kylo-spark-catalog-spark-v1</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Scala dependencies -->
     <dependency>
       <groupId>org.scala-lang</groupId>
@@ -123,8 +161,19 @@
     </dependency>
     <dependency>
       <groupId>com.databricks</groupId>
-      <artifactId>spark-csv_2.10</artifactId>
-      <version>${spark.csv.version}</version>
+      <artifactId>spark-csv_${scala.binary.version}</artifactId>
+      <version>${spark1.csv.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.scala-lang</groupId>
+          <artifactId>scala-library</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>com.databricks</groupId>
+      <artifactId>spark-xml_${scala.binary.version}</artifactId>
+      <version>${spark1.xml.version}</version>
       <exclusions>
         <exclusion>
           <groupId>org.scala-lang</groupId>
@@ -159,6 +208,24 @@
       <scope>provided</scope>
     </dependency>
 
+
+    <!-- Livy Support -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.module</groupId>
+      <artifactId>jackson-module-scala_${scala.binary.version}</artifactId>
+      <version>${jackson.scala.version}</version>
+        <exclusions>
+          <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-reflect</artifactId>
+          </exclusion>
+          <exclusion>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+          </exclusion>
+        </exclusions>
+    </dependency>
+
     <!-- Testing dependencies -->
     <dependency>
       <groupId>org.mockito</groupId>
@@ -170,8 +237,8 @@
     <plugins>
       <!-- Compiles Scala code -->
       <plugin>
-        <groupId>org.scala-tools</groupId>
-        <artifactId>maven-scala-plugin</artifactId>
+        <groupId>net.alchim31.maven</groupId>
+        <artifactId>scala-maven-plugin</artifactId>
         <configuration>
           <checkMultipleScalaVersions>false</checkMultipleScalaVersions>
           <scalaVersion>${scala.version}</scalaVersion>

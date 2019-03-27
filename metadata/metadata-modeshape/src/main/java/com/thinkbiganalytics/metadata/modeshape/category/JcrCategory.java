@@ -25,15 +25,19 @@ import com.thinkbiganalytics.metadata.api.extension.UserFieldDescriptor;
 import com.thinkbiganalytics.metadata.api.feed.Feed;
 import com.thinkbiganalytics.metadata.api.feed.security.FeedOpsAccessControlProvider;
 import com.thinkbiganalytics.metadata.api.security.HadoopSecurityGroup;
-import com.thinkbiganalytics.metadata.api.security.RoleMembership;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
 import com.thinkbiganalytics.metadata.modeshape.category.security.JcrCategoryAllowedActions;
-import com.thinkbiganalytics.metadata.modeshape.common.AbstractJcrAuditableSystemEntity;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.JcrProperties;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.AuditableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.IconableMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.IndexControlledMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.PropertiedMixin;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.SystemEntityMixin;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedActions;
 import com.thinkbiganalytics.metadata.modeshape.security.mixin.AccessControlledMixin;
-import com.thinkbiganalytics.metadata.modeshape.support.JcrPropertyUtil;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrUtil;
+import com.thinkbiganalytics.security.role.RoleMembership;
 import com.thinkbiganalytics.security.role.SecurityRole;
 
 import java.io.Serializable;
@@ -51,14 +55,12 @@ import javax.jcr.RepositoryException;
 /**
  * An implementation of {@link Category} backed by a JCR repository.
  */
-public class JcrCategory extends AbstractJcrAuditableSystemEntity implements Category, AccessControlledMixin {
+public class JcrCategory extends JcrEntity<Category.ID> implements Category, AuditableMixin, IconableMixin, SystemEntityMixin, PropertiedMixin, IndexControlledMixin, AccessControlledMixin {
 
     public static final String DETAILS = "tba:details";
 
     public static final String CATEGORY_NAME = "tba:category";
     public static final String NODE_TYPE = "tba:category";
-    public static final String ICON = "tba:icon";
-    public static final String ICON_COLOR = "tba:iconColor";
 
     private CategoryDetails details;
 
@@ -111,37 +113,20 @@ public class JcrCategory extends AbstractJcrAuditableSystemEntity implements Cat
     }
 
     // -=-=--=-=- Delegate Propertied methods to details -=-=-=-=-=-
-
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.modeshape.common.mixin.PropertiedMixin#getPropertiesObject()
+     */
     @Override
-    public Map<String, Object> getProperties() {
-        return getDetails().map(d -> d.getProperties()).orElse(Collections.emptyMap());
+    public Optional<JcrProperties> getPropertiesObject() {
+        // Delegate to the details object to get the properties node that holds 
+        // dynamic properties.
+        return getDetails().flatMap(d -> d.getPropertiesObject());
     }
 
-    @Override
-    public void setProperties(Map<String, Object> properties) {
-        getDetails().ifPresent(d -> d.setProperties(properties));
-    }
-
-    @Override
-    public void setProperty(String name, Object value) {
-        getDetails().ifPresent(d -> d.setProperty(name, value));
-    }
-
-    @Override
-    public void removeProperty(String key) {
-        getDetails().ifPresent(d -> d.removeProperty(key));
-    }
-
-    @Override
-    public Map<String, Object> mergeProperties(Map<String, Object> props) {
-        return getDetails().map(d -> d.mergeProperties(props)).orElse(Collections.emptyMap());
-    }
-
-    @Override
-    public Map<String, Object> replaceProperties(Map<String, Object> props) {
-        return getDetails().map(d -> d.replaceProperties(props)).orElse(Collections.emptyMap());
-    }
-
+    
+    // -=-=--=-=-=-=-=-=-=-=-
+    
 
     public Optional<CategoryDetails> getDetails() {
         if (this.details == null) {
@@ -199,62 +184,9 @@ public class JcrCategory extends AbstractJcrAuditableSystemEntity implements Cat
         setTitle(displayName);
     }
 
-    public String getDescription() {
-        return super.getProperty(DESCRIPTION, String.class);
-    }
-
-    public void setDescription(String description) {
-        super.setProperty(DESCRIPTION, description);
-    }
-
-    public String getSystemName() {
-        return super.getProperty(SYSTEM_NAME, String.class);
-    }
-
-    public void setSystemName(String systemName) {
-        super.setProperty(SYSTEM_NAME, systemName);
-    }
-
-    public String getTitle() {
-        return super.getProperty(TITLE, String.class);
-    }
-
-    public void setTitle(String title) {
-        super.setProperty(TITLE, title);
-    }
-
-    @Override
-    public String getIconColor() {
-        return super.getProperty(ICON_COLOR, String.class, true);
-    }
-
-    public void setIconColor(String iconColor) {
-        super.setProperty(ICON_COLOR, iconColor);
-    }
-
-    @Override
-    public boolean isAllowIndexing() {
-        String allowIndexing = JcrPropertyUtil.getProperty(getNode(),ALLOW_INDEXING, "Y"); //returns Y if property doesn't exist
-        return allowIndexing.equals("Y");
-    }
-
-    @Override
-    public void setAllowIndexing(boolean allowIndexing) {
-        super.setProperty(ALLOW_INDEXING, allowIndexing?"Y":"N");
-    }
-
     @Override
     public Integer getVersion() {
         return null;
-    }
-
-    @Override
-    public String getIcon() {
-        return super.getProperty(ICON, String.class, true);
-    }
-
-    public void setIcon(String icon) {
-        super.setProperty(ICON, icon);
     }
 
     @Override
@@ -271,7 +203,18 @@ public class JcrCategory extends AbstractJcrAuditableSystemEntity implements Cat
     public Class<? extends JcrAllowedActions> getJcrAllowedActionsType() {
         return JcrCategoryAllowedActions.class;
     }
-
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.security.AccessControlled#getLogId()
+     */
+    @Override
+    public String getAuditId() {
+        return "Category:" + getId();
+    }
+    
+    /* (non-Javadoc)
+     * @see com.thinkbiganalytics.metadata.api.category.Category#moveFeed(com.thinkbiganalytics.metadata.api.feed.Feed)
+     */
     public String getFeedParentPath() {
         return JcrUtil.path(getNode(), DETAILS).toString();
     }

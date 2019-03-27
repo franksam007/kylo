@@ -3,6 +3,10 @@ import {moduleName} from "./module-name";
 import PivotTableUtil from "./PivotTableUtil";
 import * as _ from "underscore";
 import * as moment from "moment";
+import './module-require';
+import 'pivottable-c3-renderers';
+import '../../../bower_components/c3/c3.css';
+import OpsManagerRestUrlService from '../services/OpsManagerRestUrlService';
 
 export class controller implements ng.IComponentController{
     selectedFeedNames: any;
@@ -24,7 +28,7 @@ constructor(private $scope: any,
             private $http: any,
             private HttpService: any,
             private OpsManagerJobService: any,
-            private OpsManagerFeedService: any){
+            private OpsManagerRestUrlService: any){
         this.selectedFeedNames = ['All'];
         this.startDate = null;
         this.endDate = null;
@@ -121,7 +125,7 @@ constructor(private $scope: any,
             formParams['filter'] = filter;
 
 
-            $("#charts_tab_pivot_chart").html('<div class="bg-info"><i class="fa fa-refresh fa-spin"></i> Rendering Pivot Table...</div>')
+            $("#charts_tab_pivot_chart").html('<div class="bg-info">Rendering Pivot Table...</div>')
             var rqst = this.HttpService.newRequestBuilder(this.OpsManagerJobService.JOBS_CHARTS_QUERY_URL).params(formParams).success(successFn).error(errorFn).finally(finallyFn).build();
             this.currentRequest = rqst;
             this.loading = true;
@@ -142,7 +146,7 @@ constructor(private $scope: any,
             var finallyFn = ()=> {
 
             }
-            this.$http.get(this.OpsManagerFeedService.FEED_NAMES_URL).then( successFn, errorFn);
+            this.$http.get(this.OpsManagerRestUrlService.FEED_NAMES_URL).then( successFn, errorFn);
         }
 
 
@@ -255,6 +259,7 @@ constructor(private $scope: any,
 
 }
 
-angular.module(moduleName)
+const module = angular.module(moduleName)
  .controller('ChartsController',
-["$scope","$element","$http","HttpService","OpsManagerJobService","OpsManagerFeedService",controller]);
+["$scope","$element","$http","HttpService","OpsManagerJobService","OpsManagerRestUrlService",controller]);
+export default module;

@@ -1,19 +1,22 @@
-import {moduleName} from "../module-name";
+import {OnDestroy, OnInit} from "@angular/core";
+import {StateService} from "@uirouter/angular";
 import * as angular from "angular";
+import {empty} from "rxjs/observable/empty";
+import {of} from "rxjs/observable/of";
+import {timer} from "rxjs/observable/timer";
+import {catchError} from "rxjs/operators/catchError";
+import {concatMap} from "rxjs/operators/concatMap";
+import {expand} from "rxjs/operators/expand";
+import {Subscription} from "rxjs/Subscription";
 
 import * as _ from "underscore";
-import {ImportComponentType} from "../../services/ImportService";
-import {Import} from "../../services/ImportComponentOptionTypes";
-import {Common} from "../../../common/CommonTypes";
-import {OnInit} from "@angular/core";
-import ImportComponentOption = Import.ImportComponentOption;
-import RemoteProcessInputPort = Import.RemoteProcessInputPort;
-import ImportTemplateResult = Import.ImportTemplateResult;
-import InputPortListItem = Import.InputPortListItem;
-import ImportService = Import.ImportService;
+import {ImportComponentOption, ImportComponentType, ImportService, ImportTemplateResult, InputPortListItem, RemoteProcessInputPort} from '../../services/ImportComponentOptionTypes';
+import {RegisterTemplateServiceFactory} from "../../services/RegisterTemplateServiceFactory";
+import {moduleName} from "../module-name";
 import Map = Common.Map;
+import {Common} from '../../../../lib/common/CommonTypes';
 
-export class ImportTemplateController implements ng.IController, OnInit {
+export class ImportTemplateController implements angular.IController, OnDestroy, OnInit {
 
     /**
      * the angular ng-form for validity checks
@@ -66,7 +69,7 @@ export class ImportTemplateController implements ng.IController, OnInit {
      * handle on the $interval object to cancel later
      * @type {null}
      */
-    uploadStatusCheck: angular.IPromise<any> = undefined;
+    uploadStatusCheck: Subscription;
 
     /**
      * Percent upload complete
@@ -198,14 +201,66 @@ export class ImportTemplateController implements ng.IController, OnInit {
      * Flag to see if we should check and use remote input ports.
      * This will be disabled until all of the Remte Input port and Remote Process Groups have been completed.
      */
-    remoteProcessGroupAware :boolean = false;
+    remoteProcessGroupAware: boolean = false;
 
-    static $inject = ["$scope", "$http", "$interval", "$timeout", "$mdDialog", "FileUpload", "RestUrlService", "ImportService", "RegisterTemplateService"];
+    templateParam: any;
 
-    constructor(private $scope: angular.IScope, private $http: angular.IHttpService, private $interval: angular.IIntervalService, private $timeout: angular.ITimeoutService
-        , private $mdDialog: angular.material.IDialogService, private FileUpload: any, private RestUrlService: any, private ImportService: ImportService
-        , private RegisterTemplateService: any) {
 
+    /**
+     * When the controller is ready, initialize
+     */
+    $onInit() {
+        this.ngOnInit();
+    }
+
+    /**
+     * Initialize the controller and properties
+     */
+    ngOnInit() {
+        this.indexImportOptions();
+        this.setDefaultImportOptions();
+        this.checkRemoteProcessGroupAware();
+    }
+
+    $onDestroy(): void {
+        this.ngOnDestroy();
+    }
+
+    ngOnDestroy(): void {
+        this.stopUploadStatus();
+    }
+
+    static $inject = ["$scope", "$http", "$timeout", "$mdDialog", "FileUpload", "RestUrlService", "ImportService", "RegisterTemplateService", "$state"];
+
+    constructor(private $scope: angular.IScope,
+                private $http: angular.IHttpService,
+                private $timeout: angular.ITimeoutService,
+                private $mdDialog: angular.material.IDialogService,
+                private FileUpload: any,
+                private RestUrlService: any,
+                private ImportService: ImportService,
+                private registerTemplateService: RegisterTemplateServiceFactory,
+                private $state: StateService) {
+
+        /**
+         * Watch when the file changes
+         */
+        this.$scope.$watch(() => {
+            return this.templateFile;
+        }, (newVal: any, oldValue: any) => {
+            if (newVal != null)
+                this.checkFileName(newVal.name);
+            //reset them if changed
+            if (newVal != oldValue) {
+                this.resetImportOptions();
+            }
+
+        });
+
+        if (this.$state.params.template) {
+            this.templateParam = this.$state.params.template;
+            this.checkFileName(this.templateParam.fileName);
+        }
 
         this.templateDataImportOption = this.ImportService.newTemplateDataImportOption();
 
@@ -220,40 +275,20 @@ export class ImportTemplateController implements ng.IController, OnInit {
 
     }
 
-    /**
-     * Initialize the controller and properties
-     */
-    ngOnInit() {
-
-        this.indexImportOptions();
-        this.setDefaultImportOptions();
-        this.checkRemoteProcessGroupAware();
-        /**
-         * Watch when the file changes
-         */
-        var self = this;
-        this.$scope.$watch(() => {
-            return this.templateFile;
-        }, (newVal: any, oldValue: any) => {
-            if (newVal != null) {
-                this.fileName = newVal.name;
-                if (this.fileName.toLowerCase().endsWith(".xml")) {
-                    this.uploadType = 'xml';
-                }
-                else {
-                    this.uploadType = 'zip'
-                }
+    private checkFileName(newFileName: string) {
+        if (newFileName != null) {
+            this.fileName = newFileName;
+            if (this.fileName.toLowerCase().endsWith(".xml")) {
+                this.uploadType = 'xml';
             }
             else {
-                this.fileName = null;
-                this.uploadType = null;
+                this.uploadType = 'zip'
             }
-            //reset them if changed
-            if (newVal != oldValue) {
-                this.resetImportOptions();
-            }
-
-        });
+        }
+        else {
+            this.fileName = null;
+            this.uploadType = null;
+        }
     }
 
     /**
@@ -278,7 +313,8 @@ export class ImportTemplateController implements ng.IController, OnInit {
             var responseData = response.data;
             this.xmlType = !responseData.zipFile;
 
-            var processGroupName = (responseData.templateResults != undefined && responseData.templateResults.processGroupEntity != undefined) ? responseData.templateResults.processGroupEntity.name : ''
+            var processGroupName = (responseData.templateResults != undefined
+                && responseData.templateResults.processGroupEntity != undefined) ? responseData.templateResults.processGroupEntity.name : ''
 
             /**
              * Count or errors after this upload
@@ -289,7 +325,7 @@ export class ImportTemplateController implements ng.IController, OnInit {
              * Map of errors by type after this upload
              * @type {{FATAL: any[]; WARN: any[]}}
              */
-            let errorMap: any = {"FATAL": [], "WARN": []};
+            let errorMap: any = { "FATAL": [], "WARN": [] };
 
             //reassign the options back from the response data
             let importComponentOptions = responseData.importOptions.importComponentOptions;
@@ -313,13 +349,13 @@ export class ImportTemplateController implements ng.IController, OnInit {
                     //show the user the list and allow them to configure and save it.
 
                     //add button that will make these connections
-                    this.RegisterTemplateService.fetchRegisteredReusableFeedInputPorts().then((inputPortsResponse: any) => {
+                    this.registerTemplateService.fetchRegisteredReusableFeedInputPorts().then((inputPortsResponse: any) => {
                         //Update connectionMap and inputPortList
                         this.inputPortList = [];
                         if (inputPortsResponse.data) {
                             angular.forEach(inputPortsResponse.data, (port, i) => {
                                 var disabled = angular.isUndefined(port.destinationProcessGroupName) || (angular.isDefined(port.destinationProcessGroupName) && port.destinationProcessGroupName != '' && port.destinationProcessGroupName == processGroupName);
-                                this.inputPortList.push({label: port.name, value: port.name, description: port.destinationProcessGroupName, disabled: disabled});
+                                this.inputPortList.push({ label: port.name, value: port.name, description: port.destinationProcessGroupName, disabled: disabled });
                                 this.connectionMap[port.name] = port;
                             });
                         }
@@ -347,68 +383,67 @@ export class ImportTemplateController implements ng.IController, OnInit {
             }
 
 
-                if (responseData.templateResults.errors) {
-                    angular.forEach(responseData.templateResults.errors, (processor) => {
-                        if (processor.validationErrors) {
-                            angular.forEach(processor.validationErrors, (error: any) => {
-                                var copy: any = {};
-                                angular.extend(copy, error);
-                                angular.extend(copy, processor);
-                                copy.validationErrors = null;
-                                errorMap[error.severity].push(copy);
-                                count++;
-                            });
-                        }
-                    });
+            if (responseData.templateResults.errors) {
+                angular.forEach(responseData.templateResults.errors, (processor) => {
+                    if (processor.validationErrors) {
+                        angular.forEach(processor.validationErrors, (error: any) => {
+                            var copy: any = {};
+                            angular.extend(copy, error);
+                            angular.extend(copy, processor);
+                            copy.validationErrors = null;
+                            errorMap[error.severity].push(copy);
+                            count++;
+                        });
+                    }
+                });
 
-                    this.errorMap = errorMap;
-                    this.errorCount = count;
-                }
-                if(!this.additionalInputNeeded) {
-                    if (count == 0) {
-                        this.showReorderList = responseData.zipFile;
-                        this.importResultIcon = "check_circle";
-                        this.importResultIconColor = "#009933";
-                        if (responseData.zipFile == true) {
-                            this.message = "Successfully imported and registered the template " + responseData.templateName;
-                        }
-                        else {
-                            this.message = "Successfully imported the template " + responseData.templateName + " into Nifi"
-                        }
-                        this.resetImportOptions();
+                this.errorMap = errorMap;
+                this.errorCount = count;
+            }
+            if (!this.additionalInputNeeded) {
+                if (count == 0) {
+                    this.showReorderList = responseData.zipFile;
+                    this.importResultIcon = "check_circle";
+                    this.importResultIconColor = "#009933";
+                    if (responseData.zipFile == true) {
+                        this.message = "Successfully imported and registered the template " + responseData.templateName;
                     }
                     else {
-                        if (responseData.success) {
-                            this.resetImportOptions();
-                            this.showReorderList = responseData.zipFile;
-                            this.message = "Successfully imported " + (responseData.zipFile == true ? "and registered " : "") + " the template " + responseData.templateName + " but some errors were found. Please review these errors";
-                            this.importResultIcon = "warning";
-                            this.importResultIconColor = "#FF9901";
-                        }
-                        else {
-                            this.importResultIcon = "error";
-                            this.importResultIconColor = "#FF0000";
-                            this.message = "Unable to import " + (responseData.zipFile == true ? "and register " : "") + " the template " + responseData.templateName + ".  Errors were found.  You may need to fix the template or go to Nifi to fix the Controller Services and then try to import again.";
-                        }
+                        this.message = "Successfully imported the template " + responseData.templateName + " into Nifi"
+                    }
+                    this.resetImportOptions();
+                }
+                else {
+                    if (responseData.success) {
+                        this.resetImportOptions();
+                        this.showReorderList = responseData.zipFile;
+                        this.message = "Successfully imported " + (responseData.zipFile == true ? "and registered " : "") + " the template " + responseData.templateName + " but some errors were found. Please review these errors";
+                        this.importResultIcon = "warning";
+                        this.importResultIconColor = "#FF9901";
+                    }
+                    else {
+                        this.importResultIcon = "error";
+                        this.importResultIconColor = "#FF0000";
+                        this.message = "Unable to import " + (responseData.zipFile == true ? "and register " : "") + " the template " + responseData.templateName + ".  Errors were found.  You may need to fix the template or go to Nifi to fix the Controller Services and then try to import again.";
                     }
                 }
+            }
 
 
             this.uploadInProgress = false;
             this.stopUploadStatus(1000);
 
 
-        }
+        };
         let errorFn = (response: angular.IHttpResponse<any>) => {
-            this.importResult = response.data;
+            this.importResult = response.data || {};
             this.uploadInProgress = false;
             this.importResultIcon = "error";
             this.importResultIconColor = "#FF0000";
-            var msg = response.data.message != undefined ? response.data.message : "Unable to import the template.";
-            this.message = msg;
+            this.message = (response.data && response.data.message) ? response.data.message : "Unable to import the template.";
 
             this.stopUploadStatus(1000);
-        }
+        };
 
         //build up the options from the Map and into the array for uploading
         var importComponentOptions = this.ImportService.getImportOptionsForUpload(this.importComponentOptions);
@@ -424,32 +459,44 @@ export class ImportTemplateController implements ng.IController, OnInit {
         this.additionalInputNeeded = false;
         this.startUploadStatus();
 
-        this.FileUpload.uploadFileToUrl(file, uploadUrl, successFn, errorFn, params);
+        if (this.templateParam) {
+            params['fileName'] = this.templateParam.fileName;
+            params['repositoryName'] = this.templateParam.repository.name;
+            params['repositoryType'] = this.templateParam.repository.type;
+            this.importTemplateFromRepository(params, successFn, errorFn);
+        } else
+            this.FileUpload.uploadFileToUrl(file, uploadUrl, successFn, errorFn, params);
+
+    }
+
+    importTemplateFromRepository(params: any, successFn: any, errorFn: any) {
+
+        this.$http.post("/proxy/v1/repository/templates/import", params, {
+            headers: {'Content-Type': 'application/json'}
+        })
+            .then(function (data) {
+                if (successFn) {
+                    successFn(data)
+                }
+            }, function (err) {
+                if (errorFn) {
+                    errorFn(err)
+                }
+            });
     }
 
     /**
      * Stop the upload and stop the progress indicator
      * @param {number} delay  wait this amount of millis before stopping
      */
-    stopUploadStatus(delay: number) {
-
-        let stopStatusCheck = () => {
+    stopUploadStatus(delay?: number) {
+        const trigger = delay ? timer(delay) : empty();
+        trigger.subscribe(null, null, () => {
             this.uploadProgress = 0;
-            if (angular.isDefined(this.uploadStatusCheck)) {
-                this.$interval.cancel(this.uploadStatusCheck);
-                this.uploadStatusCheck = undefined;
+            if (this.uploadStatusCheck) {
+                this.uploadStatusCheck.unsubscribe();
             }
-        }
-
-        if (delay != null && delay != undefined) {
-            this.$timeout(() => {
-                stopStatusCheck();
-            }, delay)
-        }
-        else {
-            stopStatusCheck();
-        }
-
+        });
     }
 
     /**
@@ -458,17 +505,26 @@ export class ImportTemplateController implements ng.IController, OnInit {
     startUploadStatus() {
         this.stopUploadStatus(null);
         this.uploadStatusMessages = [];
-        this.uploadStatusCheck = this.$interval(() => {
-            //poll for status
-            this.$http.get(this.RestUrlService.ADMIN_UPLOAD_STATUS_CHECK(this.uploadKey)).then((response: angular.IHttpResponse<any>) => {
+        this.uploadStatusCheck = of(null).pipe(
+            expand(() => {
+                return timer(500).pipe(
+                    concatMap(() => this.$http.get(this.RestUrlService.ADMIN_UPLOAD_STATUS_CHECK(this.uploadKey))),
+                    catchError(err => {
+                        console.log("Failed to get upload status", err);
+                        return of(null);
+                    })
+                );
+            }),
+        ).subscribe(
+            (response: angular.IHttpResponse<any>) => {
                 if (response && response.data && response.data != null) {
                     this.uploadStatusMessages = response.data.messages;
                     this.uploadProgress = response.data.percentComplete;
                 }
-            }, (err: any) => {
-                //  self.uploadStatusMessages = [];
+            },
+            err => {
+                console.log("Error in upload status loop", err);
             });
-        }, 500);
     }
 
 
@@ -628,7 +684,7 @@ export class ImportTemplateController implements ng.IController, OnInit {
         }
         else {
             this.nifiTemplateImportOption.continueIfExists = false;
-            this.reusableTemplateImportOption.shouldImport = true;
+            this.reusableTemplateImportOption.shouldImport = false;
             this.reusableTemplateImportOption.userAcknowledged = true;
             this.remoteProcessGroupImportOption.shouldImport = false;
             this.remoteProcessGroupImportOption.userAcknowledged = false;
@@ -640,10 +696,10 @@ export class ImportTemplateController implements ng.IController, OnInit {
     /**
      * Determine if we are clustered and if so set the flag to show the 'remote input port' options
      */
-   private checkRemoteProcessGroupAware(): void {
-            this.$http.get(this.RestUrlService.REMOTE_PROCESS_GROUP_AWARE).then((response: angular.IHttpResponse<any>) => {
-                    this.remoteProcessGroupAware = response.data.remoteProcessGroupAware;
-            });
+    private checkRemoteProcessGroupAware(): void {
+        this.$http.get(this.RestUrlService.REMOTE_PROCESS_GROUP_AWARE).then((response: angular.IHttpResponse<any>) => {
+            this.remoteProcessGroupAware = response.data.remoteProcessGroupAware;
+        });
     }
 
 
@@ -682,16 +738,19 @@ export class ImportTemplateController implements ng.IController, OnInit {
         this.connectionMap = {};
 
     }
-
-
-    /**
-     * When the controller is ready, initialize
-     */
-    $onInit(): void {
-        this.ngOnInit();
-    }
-
-
 }
 
-angular.module(moduleName).controller('ImportTemplateController', ImportTemplateController);
+const module = angular.module(moduleName)
+    .component('importTemplateController', {
+        templateUrl: './import-template.html',
+        controller: ImportTemplateController,
+        controllerAs: 'vm'
+    })
+    .component('importTemplateControllerEmbedded', {
+        //Redefined the component with different name to be used in Angular
+        //This component uses embedded template instead of templateUrl, else Angular complains
+        template: "<import-template-controller></import-template-controller>",
+        controller: ImportTemplateController,
+        controllerAs: 'vm'
+});
+export default module;

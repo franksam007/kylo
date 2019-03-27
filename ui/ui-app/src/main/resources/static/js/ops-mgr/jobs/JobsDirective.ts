@@ -2,9 +2,10 @@ import * as angular from "angular";
 import {moduleName} from "./module-name";
 import "pascalprecht.translate";
 import * as _ from 'underscore';
-import OpsManagerJobService from "../services/OpsManagerJobService";
+import {OpsManagerJobService} from "../services/ops-manager-jobs.service";
 import IconService from "../services/IconStatusService";
-import TabService from "../services/TabService";
+import {TabService} from "../../services/tab.service";
+import {AccessControlService} from "../../services/AccessControlService";
 
 export class JobsCardController implements ng.IComponentController{
     allowAdmin: boolean;
@@ -52,7 +53,7 @@ export class JobsCardController implements ng.IComponentController{
                 private StateService: any,
                 private IconService: any,
                 private TabService: any,
-                private AccessControlService: any,
+                private accessControlService: AccessControlService,
                 private BroadcastService: any,
                 private OpsManagerRestUrlService:any){
          /**
@@ -121,7 +122,7 @@ export class JobsCardController implements ng.IComponentController{
             return this.filter;
         }, (newVal: any, oldVal: any)=> {
             if (newVal != oldVal) {
-                console.log('filter changed ',newVal,oldVal)
+
                 return this.loadJobs(true).promise;
             }
         });
@@ -154,9 +155,9 @@ export class JobsCardController implements ng.IComponentController{
         });
 
         // Fetch allowed permissions
-        AccessControlService.getUserAllowedActions()
+        accessControlService.getUserAllowedActions()
                 .then((actionSet: any)=> {
-                    this.allowAdmin = AccessControlService.hasAction(AccessControlService.OPERATIONS_ADMIN, actionSet.actions);
+                    this.allowAdmin = accessControlService.hasAction(AccessControlService.OPERATIONS_ADMIN, actionSet.actions);
                 });
 
         if(this.tab != ''){
@@ -242,7 +243,7 @@ export class JobsCardController implements ng.IComponentController{
                 this.$mdMenu.hide();
                 this.$mdDialog.show({
                     controller:"AbandonAllJobsDialogController",
-                    templateUrl: 'js/ops-mgr/jobs/abandon-all-jobs-dialog.html',
+                    templateUrl: './abandon-all-jobs-dialog.html',
                     parent: angular.element(document.body),
                     clickOutsideToClose: false,
                     fullscreen: true,
@@ -551,7 +552,7 @@ export class JobsCardController implements ng.IComponentController{
             this.clearRefreshTimeout(instanceId);
             this.triggerJobActionListener('restartJob', job);
             var xhr = this.OpsManagerJobService.restartJob(job.executionId, {}, (response: any)=> {
-                this.updateJob(instanceId, response.data)
+                this.updateJob(instanceId, response)
                 //  getRunningJobExecutionData(instanceId,data.executionId);
             }, (errMsg: any)=> {
                 this.addJobErrorMessage(executionId, errMsg);
@@ -565,7 +566,7 @@ export class JobsCardController implements ng.IComponentController{
             this.clearRefreshTimeout(instanceId);
             this.triggerJobActionListener('stopJob', job);
             this.OpsManagerJobService.stopJob(job.executionId, {}, (response: any)=> {
-                this.updateJob(instanceId, response.data)
+                this.updateJob(instanceId, response)
                 //  getRunningJobExecutionData(instanceId,data.executionId);
             })
         };
@@ -577,8 +578,8 @@ export class JobsCardController implements ng.IComponentController{
             this.clearRefreshTimeout(instanceId);
             this.triggerJobActionListener('abandonJob', job);
             this.OpsManagerJobService.abandonJob(job.executionId, {}, (response: any)=> {
-                this.updateJob(instanceId, response.data)
-                this.triggerJobActionListener('abandonJob', response.data);
+                this.updateJob(instanceId, response)
+                this.triggerJobActionListener('abandonJob', response);
             })
         };
 
@@ -589,8 +590,8 @@ export class JobsCardController implements ng.IComponentController{
             this.clearRefreshTimeout(instanceId);
             this.triggerJobActionListener('failJob', job);
             this.OpsManagerJobService.failJob(job.executionId, {}, (response: any)=> {
-                this.updateJob(instanceId, response.data)
-                this.triggerJobActionListener('failJob', response.data);
+                this.updateJob(instanceId, response)
+                this.triggerJobActionListener('failJob', response);
             })
         };
 
@@ -607,7 +608,7 @@ export class JobsCardController implements ng.IComponentController{
                 attachTo: angular.element(document.body),
                 controller: 'JobFilterHelpPanelMenuCtrl',
                 controllerAs: 'ctrl',
-                templateUrl: 'js/ops-mgr/jobs/jobs-filter-help-template.html',
+                templateUrl: './jobs-filter-help-template.html',
                 panelClass: 'filter-help',
                 position: position,
                 locals: {
@@ -715,7 +716,7 @@ angular.module(moduleName).directive('tbaJobs', [
             },
             controllerAs: 'vm',
             scope: true,
-            templateUrl: 'js/ops-mgr/jobs/jobs-template.html',
+            templateUrl: './jobs-template.html',
             controller: "JobsCardController",
             link: function($scope: any, element: any, attrs: any, controller: any) {
 

@@ -7,13 +7,11 @@
   <parent>
     <groupId>com.thinkbiganalytics.kylo</groupId>
     <artifactId>kylo-commons</artifactId>
-    <version>0.9.1-SNAPSHOT</version>
+    <version>0.10.1-SNAPSHOT</version>
   </parent>
   <artifactId>kylo-commons-security</artifactId>
 
   <properties>
-    <maven.compiler.source>1.7</maven.compiler.source>
-    <maven.compiler.target>1.7</maven.compiler.target>
     <plugin.license.parentRelative>../../</plugin.license.parentRelative>
   </properties>
 
@@ -33,10 +31,17 @@
       <artifactId>spring-security-core</artifactId>
     </dependency>
 
-    <dependency>
+    <!--dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-starter-config</artifactId>
-    </dependency>
+      <exclusions>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency-->
+
     <dependency>
       <groupId>org.springframework.cloud</groupId>
       <artifactId>spring-cloud-config-server</artifactId>
@@ -44,6 +49,14 @@
         <exclusion>
           <groupId>org.apache.httpcomponents</groupId>
           <artifactId>httpclient</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-web</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.springframework.boot</groupId>
+          <artifactId>spring-boot-starter-actuator</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
@@ -55,6 +68,25 @@
       <scope>test</scope>
     </dependency>
 
+    <dependency>
+      <groupId>org.assertj</groupId>
+      <artifactId>assertj-core</artifactId>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>${maven.compiler.plugin.version}</version>
+        <configuration>
+          <source>${spark.java.version}</source>
+          <target>${spark.java.version}</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 
 </project>

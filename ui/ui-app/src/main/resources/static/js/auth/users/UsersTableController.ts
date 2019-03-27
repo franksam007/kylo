@@ -1,11 +1,15 @@
 import * as angular from 'angular';
 import * as _ from 'underscore';
-import {UserService} from "../services/UserService";
-const PAGE_NAME:string = "users";
+import UserService from "../services/UserService";
+import {AddButtonService} from  "../../services/AddButtonService";
+import {DefaultPaginationDataService} from  "../../services/PaginationDataService";
+import {StateService} from  "../../services/StateService";
+import {DefaultTableOptionsService} from  "../../services/TableOptionsService";
+import "../module";
+import "../module-require";
 import {moduleName} from "../module-name";
-//const moduleName = require('auth/module-name');
-export default class UsersTableController implements ng.IComponentController {
-
+const PAGE_NAME:string = "users";
+export class UsersTableController implements ng.IComponentController {
     /**
      * Page title.
      * @type {string}
@@ -142,16 +146,21 @@ export default class UsersTableController implements ng.IComponentController {
      * @param user the user
      */
     userDetails (user:any) {
-        this.StateService.Auth().navigateToUserDetails(user.systemName);
+        this.StateService.Auth.navigateToUserDetails(user.systemName);
     };
-
+    static readonly $inject = ["$scope",
+                                "AddButtonService",
+                                "PaginationDataService",
+                                "StateService",
+                                "TableOptionsService",
+                                "UserService"];
     constructor (
         private $scope:angular.IScope,
-        private AddButtonService:any,
-        private PaginationDataService:any,
-        private StateService:any,
-        private TableOptionsService:any,
-        private UserService:any //UserService
+        private AddButtonService:AddButtonService,
+        private PaginationDataService:DefaultPaginationDataService,
+        private StateService:StateService,
+        private TableOptionsService:DefaultTableOptionsService,
+        private UserService:UserService
     ) {
         // Notify pagination service of changes to view type
         this.$scope.$watch(() => {
@@ -162,7 +171,7 @@ export default class UsersTableController implements ng.IComponentController {
 
         // Register Add button
         this.AddButtonService.registerAddButton('users', () => {
-            this.StateService.Auth().navigateToUserDetails();
+            this.StateService.Auth.navigateToUserDetails();
         });
 
         // Get the list of users and groups
@@ -178,15 +187,10 @@ export default class UsersTableController implements ng.IComponentController {
         });
     }
 }
-angular.module(moduleName)
-       .controller("UsersTableController",
-                     ["$scope",
-                     "AddButtonService",
-                     "PaginationDataService",
-                     "StateService",
-                     "TableOptionsService",
-                     "UserService",
-                      UsersTableController]
-                    )
-        ;
-
+const module = angular.module(moduleName)
+.component("usersTableController", {
+        controller: UsersTableController,
+        controllerAs: "vm",
+        templateUrl: "./users-table.html"
+    });
+export default module;

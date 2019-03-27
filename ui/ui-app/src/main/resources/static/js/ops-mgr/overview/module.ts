@@ -31,13 +31,23 @@ class ModuleFactory  {
             },
             views: {
                 'content': {
-                    templateUrl: 'js/ops-mgr/overview/overview.html',
-                    controller:"OverviewController",
-                    controllerAs:"vm"
+                    // templateUrl: './overview.html',
+                    component:"overviewController",
+                    // controllerAs:"vm"
                 }
             },
             resolve: {
-                loadMyCtrl: this.lazyLoadController(['ops-mgr/overview/OverviewController'])
+                // loadMyCtrl: this.lazyLoadController(['./OverviewController'])
+                loadMyCtrl: ['$ocLazyLoad', ($ocLazyLoad: any) => {
+                    return import(/* webpackChunkName: "opsmgr.overview.controller" */ './OverviewController')
+                        .then(mod => {
+
+                            return $ocLazyLoad.load(mod.default)
+                        })
+                        .catch(err => {
+                            throw new Error("Failed to load OverviewController, " + err);
+                        });
+                }]
             },
             data:{
                 breadcrumbRoot:true,
@@ -47,12 +57,7 @@ class ModuleFactory  {
             }
         });
     }  
-
-    lazyLoadController(path:any){
-        return lazyLoadUtil.lazyLoadController(path,['ops-mgr/overview/module-require','ops-mgr/alerts/module-require']);//,true);
-    }    
-      
-} 
+}
 
 const module = new ModuleFactory();
 export default module;

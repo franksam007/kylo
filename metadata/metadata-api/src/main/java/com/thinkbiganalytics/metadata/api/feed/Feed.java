@@ -29,24 +29,26 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import org.joda.time.DateTime;
-
+import com.thinkbiganalytics.metadata.api.Auditable;
 import com.thinkbiganalytics.metadata.api.MissingUserPropertyException;
 import com.thinkbiganalytics.metadata.api.Propertied;
+import com.thinkbiganalytics.metadata.api.SystemEntity;
+import com.thinkbiganalytics.metadata.api.Taggable;
+import com.thinkbiganalytics.metadata.api.catalog.DataSet;
 import com.thinkbiganalytics.metadata.api.category.Category;
 import com.thinkbiganalytics.metadata.api.datasource.Datasource;
 import com.thinkbiganalytics.metadata.api.extension.UserFieldDescriptor;
 import com.thinkbiganalytics.metadata.api.feed.reindex.HistoryReindexingStatus;
-import com.thinkbiganalytics.metadata.api.security.AccessControlled;
 import com.thinkbiganalytics.metadata.api.security.HadoopSecurityGroup;
 import com.thinkbiganalytics.metadata.api.template.FeedManagerTemplate;
 import com.thinkbiganalytics.metadata.sla.api.ServiceLevelAgreement;
+import com.thinkbiganalytics.security.AccessControlled;
 
 /**
  * A feed is a specification for how data should flow into and out of a system.
  *
  */
-public interface Feed extends Propertied, AccessControlled, Serializable {
+public interface Feed extends Propertied, SystemEntity, Auditable, Taggable, AccessControlled {
 
     ID getId();
 
@@ -57,10 +59,6 @@ public interface Feed extends Propertied, AccessControlled, Serializable {
     String getDisplayName();
 
     void setDisplayName(String name);
-
-    String getDescription();
-
-    void setDescription(String descr);
 
     State getState();
 
@@ -78,7 +76,7 @@ public interface Feed extends Propertied, AccessControlled, Serializable {
 
     List<InitializationStatus> getInitHistory();
 
-    FeedPrecondition getPrecondition();
+    Optional<FeedPrecondition> getPrecondition();
 
     List<Feed> getDependentFeeds();
 
@@ -100,10 +98,6 @@ public interface Feed extends Propertied, AccessControlled, Serializable {
 
     String getVersionName();
 
-    DateTime getCreatedTime();
-
-    DateTime getModifiedTime();
-
     List<ServiceLevelAgreement> getServiceLevelAgreements();
 
     /**
@@ -114,6 +108,13 @@ public interface Feed extends Propertied, AccessControlled, Serializable {
      */
     @Nonnull
     Map<String, String> getUserProperties();
+
+    /**
+     * check to see if this feed has any missing required properties based upon the supplied field descriptors
+     * @param userFields
+     * @return true if missing required properties, false if not
+     */
+    public boolean isMissingRequiredProperties(@Nonnull final Set<UserFieldDescriptor> userFields);
 
     /**
      * Replaces the user-defined properties for this feed with the specified properties.
@@ -133,10 +134,14 @@ public interface Feed extends Propertied, AccessControlled, Serializable {
     List<? extends FeedSource> getSources();
 
     FeedSource getSource(Datasource.ID id);
+    
+    FeedSource getSource(DataSet.ID id);
 
     List<? extends FeedDestination> getDestinations();
 
     FeedDestination getDestination(Datasource.ID id);
+    
+    FeedDestination getDestination(DataSet.ID id);
 
     List<? extends HadoopSecurityGroup> getSecurityGroups();
 

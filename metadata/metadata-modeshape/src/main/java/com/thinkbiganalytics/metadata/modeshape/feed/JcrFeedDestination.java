@@ -24,6 +24,7 @@ package com.thinkbiganalytics.metadata.modeshape.feed;
  */
 
 import com.thinkbiganalytics.metadata.api.feed.FeedDestination;
+import com.thinkbiganalytics.metadata.modeshape.catalog.dataset.JcrDataSet;
 import com.thinkbiganalytics.metadata.modeshape.datasource.JcrDatasource;
 
 import javax.jcr.Node;
@@ -48,6 +49,19 @@ public class JcrFeedDestination extends JcrFeedConnection implements FeedDestina
      */
     public JcrFeedDestination(Node node, JcrDatasource datasource) {
         super(node, datasource);
-        datasource.addDestinationNode(this.node);
+        datasource.addDestinationNode(getNode());
     }
+
+    public JcrFeedDestination(Node node, JcrDataSet dataSet) {
+        super(node, dataSet);
+    }
+
+    public void remove() {
+        getDatasource()
+            .map(JcrDatasource.class::cast)
+            .ifPresent(src -> src.removeDestinationNode(getNode()));
+        
+        super.remove();
+    }
+    
 }

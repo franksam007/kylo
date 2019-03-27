@@ -1,4 +1,5 @@
 import {JdbcDatasource} from "./data-source";
+import {DataSource} from "../../../catalog/api/models/datasource";
 
 /**
  * Request to save data wrangler results.
@@ -29,6 +30,8 @@ export interface SaveRequest {
      * Target table name.
      */
     tableName?: string;
+
+    catalogDatasource?:DataSource
 }
 
 /**
@@ -66,8 +69,7 @@ export interface SaveResponse {
  * Status of a save.
  */
 export enum SaveResponseStatus {
-
     ERROR = "ERROR",
     PENDING = "PENDING",
-    SUCCESS = "SUCCESS"
+    SUCCESS = "SUCCESS",
 }

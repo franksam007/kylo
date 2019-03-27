@@ -1,6 +1,7 @@
 import * as angular from 'angular';
 import {moduleName} from "./module-name";
 import "pascalprecht.translate";
+import {OpsManagerChartJobService} from "../services/ops-manager-chart-job.service";
 declare const d3: any;
 
 export class controller implements ng.IComponentController{
@@ -26,7 +27,7 @@ export class controller implements ng.IComponentController{
                 private TableOptionsService: any,
                 private PaginationDataService: any,
                 private StateService: any,
-                private ChartJobStatusService: any,
+                private OpsManagerChartJobService: any,
                 private BroadcastService: any, 
                 private $filter: any){
 
@@ -129,7 +130,7 @@ export class controller implements ng.IComponentController{
         
 
         createChartData=(responseData: any)=>{
-                this.chartData = this.ChartJobStatusService.toChartData(responseData);
+                this.chartData = this.OpsManagerChartJobService.toChartData(responseData);
 
         }
 
@@ -163,14 +164,14 @@ export class controller implements ng.IComponentController{
             var finallyFn = ()=> {
             }
 
-            this.$http.get(this.OpsManagerFeedService.DAILY_STATUS_COUNT_URL(this.feedName),{params:{"period":this.interval+this.datePart}}).then( successFn, errorFn);
+            this.$http.get(this.OpsManagerFeedService.FEED_DAILY_STATUS_COUNT_URL(this.feedName),{params:{"period":this.interval+this.datePart}}).then( successFn, errorFn);
         }
 }
 
   angular.module(moduleName)
   .controller('FeedActivityController', ["$scope","$http","$interval","$timeout","$q","Utils",
   "OpsManagerFeedService","TableOptionsService","PaginationDataService","StateService",
-  "ChartJobStatusService","BroadcastService","$filter",controller]);
+  "OpsManagerChartJobService","BroadcastService","$filter",controller]);
 
     angular.module(moduleName)
         .directive('tbaFeedActivity', [ (Utils: any)=> {
@@ -181,7 +182,7 @@ export class controller implements ng.IComponentController{
                             },
                             controllerAs: 'vm',
                             scope: {},
-                            templateUrl: 'js/ops-mgr/feeds/feed-activity-template.html',
+                            templateUrl: './feed-activity-template.html',
                             controller: "FeedActivityController",
                             link:  ($scope: any, element: any, attrs: any, controller: any)=> {
                             },

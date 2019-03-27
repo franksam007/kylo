@@ -33,6 +33,7 @@ import com.thinkbiganalytics.metadata.modeshape.JcrMetadataAccess;
 import com.thinkbiganalytics.metadata.modeshape.MetadataRepositoryException;
 import com.thinkbiganalytics.metadata.modeshape.common.EntityUtil;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
+import com.thinkbiganalytics.metadata.modeshape.common.JcrObject;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedActions;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedEntityActionsProvider;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrObjectTypeResolver;
@@ -118,7 +119,7 @@ public class JcrDatasourceProvider extends BaseJcrProvider<Datasource, Datasourc
     @Inject
     private AccessController accessController;
 
-    public static Class<? extends JcrEntity> resolveJcrEntityClass(String jcrNodeType) {
+    public static Class<? extends JcrEntity<?>> resolveJcrEntityClass(String jcrNodeType) {
         if (NODE_TYPES_MAP.containsKey(jcrNodeType)) {
             return NODE_TYPES_MAP.get(jcrNodeType);
         } else {
@@ -126,7 +127,7 @@ public class JcrDatasourceProvider extends BaseJcrProvider<Datasource, Datasourc
         }
     }
 
-    public static Class<? extends JcrEntity> resolveJcrEntityClass(Node node) {
+    public static Class<? extends JcrEntity<?>> resolveJcrEntityClass(Node node) {
         try {
             return resolveJcrEntityClass(node.getPrimaryNodeType().getName());
         } catch (RepositoryException e) {
@@ -226,17 +227,17 @@ public class JcrDatasourceProvider extends BaseJcrProvider<Datasource, Datasourc
     }
 
     @Override
-    public Class<? extends JcrEntity> getJcrEntityClass() {
+    public Class<? extends JcrEntity<?>> getJcrEntityClass() {
         return JcrDatasource.class;
     }
 
     @Override
-    public Class<? extends JcrEntity> getJcrEntityClass(String jcrNodeType) {
+    public Class<? extends JcrEntity<?>> getJcrEntityClass(String jcrNodeType) {
         return resolveJcrEntityClass(jcrNodeType);
     }
 
     @Override
-    public String getNodeType(Class<? extends JcrEntity> jcrEntityType) {
+    public String getNodeType(Class<? extends JcrObject> jcrEntityType) {
         try {
             Field folderField = FieldUtils.getField(jcrEntityType, "NODE_TYPE", true);
             String jcrType = (String) folderField.get(null);
@@ -319,7 +320,8 @@ public class JcrDatasourceProvider extends BaseJcrProvider<Datasource, Datasourc
             final Class<? extends JcrDatasourceDetails> implType = JcrUserDatasource.resolveDetailsClass(type);
             final boolean isNew = !hasEntityNode(parent.get().getPath(), JcrUserDatasource.DETAILS);
 
-            final Node node = findOrCreateEntityNode(parent.get().getPath(), JcrUserDatasource.DETAILS, implType);
+            final String nodeType = getNodeType(implType);
+            final Node node = JcrUtil.getOrCreateNode(parent.get().getNode(), JcrUserDatasource.DETAILS, nodeType);
             @SuppressWarnings("unchecked") final D details = (D) JcrUtil.createJcrObject(node, implType);
 
             // Re-assign permissions to data source
@@ -335,7 +337,7 @@ public class JcrDatasourceProvider extends BaseJcrProvider<Datasource, Datasourc
                         .ifPresent(actions -> parent.get().enableAccessControl((JcrAllowedActions) actions, owner, roles));
                 } else {
                     actionsProvider.getAvailableActions(AllowedActions.DATASOURCE)
-                        .ifPresent(actions -> parent.get().disableAccessControl((JcrAllowedActions) actions, owner));
+                        .ifPresent(actions -> parent.get().disableAccessControl(owner));
                 }
             }
 
@@ -375,7 +377,7 @@ public class JcrDatasourceProvider extends BaseJcrProvider<Datasource, Datasourc
                         .ifPresent(actions -> ((JcrUserDatasource) datasource).enableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser(), roles));
                 } else {
                     actionsProvider.getAvailableActions(AllowedActions.DATASOURCE)
-                        .ifPresent(actions -> ((JcrUserDatasource) datasource).disableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser()));
+                        .ifPresent(actions -> ((JcrUserDatasource) datasource).disableAccessControl(JcrMetadataAccess.getActiveUser()));
                 }
             }
 

@@ -23,18 +23,17 @@
 
     <header-section>
       <div layout="row" layout-align="center start">
-        <div class="card-title">Import Template</div>
+        <div class="card-title">Import Template<span ng-if="vm.templateParam != null">: {{vm.templateParam.templateName}}</span></div>
         <span flex></span>
-        <ng-md-icon icon="file_upload" style="fill:#F08C38;padding-right:16px;" size="30"></ng-md-icon>
+        <ng-md-icon icon="file_upload" class="push-right tc-accent" size="30"></ng-md-icon>
       </div>
     </header-section>
 
 
     <body-section>
 
-
       <div layout="column" class="md-padding">
-
+        <span ng-if="vm.templateParam == null">
         <div>
           <div class="item-title">Import one of the following from another environment:</div>
         </div>
@@ -86,10 +85,10 @@
             </md-list-item>
           </md-list>
         </div>
-
+        </span>
         <div layout="column" style="padding-top:15px;"
              class="layout-padding-indent">
-          <upload-file upload-file-model="vm.templateFile"></upload-file>
+          <upload-file ng-if="vm.templateParam == null" upload-file-model="vm.templateFile"></upload-file>
 
           <div ng-if="vm.uploadType == 'zip'">
             <!-- validation messages -->
@@ -116,7 +115,7 @@
               </div>
             </md-input-container>
               <md-input-container class="condensed-no-float md-block layout-padding-bottom" flex="50" >
-                <md-checkbox ng-model="vm.reusableTemplateImportOption.overwrite" aria-label="Overwrite if exists" >
+                <md-checkbox ng-model="vm.reusableTemplateImportOption.overwrite" aria-label="Import reusable template" >
                   Import the reusable template
                 </md-checkbox>
 
@@ -174,6 +173,21 @@
               </div>
             </div>
 
+            <div ng-if="vm.reusableTemplateImportOption.properties && vm.reusableTemplateImportOption.properties.length > 0" flex layout="column">
+              <div class="layout-padding-bottom">
+                The following properties (total count: {{ vm.reusableTemplateImportOption.properties.length }}) need to be supplied before importing this reusable template.
+              </div>
+
+              <div ng-repeat="prop in vm.reusableTemplateImportOption.properties" layout="column" layout-align="start start">
+                <span>{{ prop.processorName }}</span>
+                <div layout="row" flex layout-fill>
+                  <md-input-container>
+                    <label>{{ prop.propertyKey }}</label>
+                    <input type="text" ng-model="prop.propertyValue" autocomplete="new-password" name="{{prop.inputName}}">
+                  </md-input-container>
+                </div>
+              </div>
+            </div>
 
             <div layout="row">
             <md-input-container class="condensed-no-float md-block layout-padding-bottom" flex="50">
@@ -211,12 +225,12 @@
         </div>
 
         <div layout="row" class="layout-padding-top">
-          <md-button class="md-raised md-primary" ng-click="vm.importTemplate();" ng-if="vm.templateFile != null && !vm.reusableTemplateInputPortsNeeded && !vm.remoteProcessGroupInputPortsNeeded"
+          <md-button class="md-raised md-primary" ng-click="vm.importTemplate();" ng-if="(vm.templateFile != null || vm.templateParam != null) && !vm.reusableTemplateInputPortsNeeded && !vm.remoteProcessGroupInputPortsNeeded"
                      ng-disabled="vm.uploadInProgress">
             Import Template
           </md-button>
           <span flex="5"></span>
-          <md-progress-linear flex md-mode="determinate" value="{{vm.uploadProgress}}" ng-if="vm.uploadInProgress"></md-progress-linear>
+          <md-progress-linear class="md-accent" flex md-mode="determinate" value="{{vm.uploadProgress}}" ng-if="vm.uploadInProgress"></md-progress-linear>
         </div>
 
         <div layout="column">

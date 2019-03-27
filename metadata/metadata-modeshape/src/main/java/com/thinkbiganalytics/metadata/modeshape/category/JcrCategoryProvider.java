@@ -34,6 +34,7 @@ import com.thinkbiganalytics.metadata.modeshape.common.EntityUtil;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrEntity;
 import com.thinkbiganalytics.metadata.modeshape.common.JcrObject;
 import com.thinkbiganalytics.metadata.modeshape.common.UserFieldDescriptors;
+import com.thinkbiganalytics.metadata.modeshape.common.mixin.SystemEntityMixin;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedActions;
 import com.thinkbiganalytics.metadata.modeshape.security.action.JcrAllowedEntityActionsProvider;
 import com.thinkbiganalytics.metadata.modeshape.support.JcrPropertyUtil;
@@ -95,21 +96,19 @@ public class JcrCategoryProvider extends BaseJcrProvider<Category, Category.ID> 
 
     @Override
     public Category update(Category category) {
-        if (accessController.isEntityAccessControlled()) {
-            category.getAllowedActions().checkPermission(CategoryAccessControl.EDIT_DETAILS);
-        }
+        accessController.checkPermission(category, CategoryAccessControl.EDIT_DETAILS);
         return super.update(category);
     }
 
     @Override
     public Category findBySystemName(String systemName) {
-        String query = "SELECT * FROM [" + getNodeType(getJcrEntityClass()) + "] as cat WHERE cat.[" + JcrCategory.SYSTEM_NAME + "] = $systemName ";
+        String query = "SELECT * FROM [" + getNodeType(getJcrEntityClass()) + "] as cat WHERE cat.[" + SystemEntityMixin.SYSTEM_NAME + "] = $systemName ";
         query = applyFindAllFilter(query, EntityUtil.pathForCategory());
         return JcrQueryUtil.findFirst(getSession(), query, ImmutableMap.of("systemName", systemName), getEntityClass());
     }
 
     @Override
-    public String getNodeType(Class<? extends JcrEntity> jcrEntityType) {
+    public String getNodeType(Class<? extends JcrObject> jcrEntityType) {
         return JcrCategory.NODE_TYPE;
     }
 
@@ -119,7 +118,7 @@ public class JcrCategoryProvider extends BaseJcrProvider<Category, Category.ID> 
     }
 
     @Override
-    public Class<? extends JcrEntity> getJcrEntityClass() {
+    public Class<? extends JcrEntity<?>> getJcrEntityClass() {
         return JcrCategory.class;
     }
 
@@ -140,7 +139,7 @@ public class JcrCategoryProvider extends BaseJcrProvider<Category, Category.ID> 
                     .ifPresent(actions -> category.enableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser(), catRoles, feedRoles));
             } else {
                 this.actionsProvider.getAvailableActions(AllowedActions.CATEGORY)
-                    .ifPresent(actions -> category.disableAccessControl((JcrAllowedActions) actions, JcrMetadataAccess.getActiveUser()));
+                    .ifPresent(actions -> category.disableAccessControl(JcrMetadataAccess.getActiveUser()));
             }
         }
 

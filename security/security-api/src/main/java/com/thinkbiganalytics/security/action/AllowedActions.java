@@ -38,6 +38,7 @@ public interface AllowedActions {
     String CATEGORY = "category";
     String TEMPLATE = "template";
     String DATASOURCE = "datasource";
+    String CONNECTOR = "connector";
     String PROJECTS = "projects";
 
     
@@ -52,6 +53,13 @@ public interface AllowedActions {
      * validate a user has a given permission(s)
      * @param action the action to check
      * @param more additional actions to check
+     * @return true if user has the permission(s), false if not
+     */
+    boolean hasPermission(Set<Action> actions);
+    
+    /**
+     * validate a user has a given permission(s)
+     * @param actions the actions to check
      * @return true if user has the permission(s), false if not
      */
     boolean hasPermission(Action action, Action... more);

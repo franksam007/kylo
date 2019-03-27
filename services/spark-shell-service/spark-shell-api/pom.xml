@@ -11,29 +11,33 @@
   <parent>
     <artifactId>kylo-spark-shell-service</artifactId>
     <groupId>com.thinkbiganalytics.kylo</groupId>
-    <version>0.9.1-SNAPSHOT</version>
+    <version>0.10.1-SNAPSHOT</version>
   </parent>
   <properties>
     <plugin.license.parentRelative>../../../</plugin.license.parentRelative>
   </properties>
 
   <dependencies>
-    <!-- Core -->
-    <dependency>
-      <groupId>com.google.code.findbugs</groupId>
-      <artifactId>jsr305</artifactId>
-    </dependency>
-
-    <!-- Apache Commons -->
     <dependency>
       <groupId>org.apache.commons</groupId>
       <artifactId>commons-exec</artifactId>
     </dependency>
-
-    <!-- Kylo -->
+    <dependency>
+      <groupId>com.google.code.findbugs</groupId>
+      <artifactId>jsr305</artifactId>
+    </dependency>
     <dependency>
       <groupId>com.thinkbiganalytics.kylo</groupId>
       <artifactId>kylo-spark-shell-rest-model</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.reactivestreams</groupId>
+      <artifactId>reactive-streams</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.thinkbiganalytics.kylo</groupId>
+      <artifactId>kylo-cluster-manager-api</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

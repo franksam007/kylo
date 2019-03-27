@@ -145,11 +145,11 @@ export default class controller implements ng.IComponentController {
     /**
      * flag to indicate the data is loaded
      */
-    dataLoaded: boolean;
+    dataLoaded: boolean = false;
     /**
      * The chart API object
      */
-    chartApi: any;
+    chartApi: any = {};
     /**
      * options for how to render the chart
      */
@@ -165,12 +165,12 @@ export default class controller implements ng.IComponentController {
     validateTitleTimeout: any;
 
     static $inject = ["$scope", "$element", "$http",
-        "$mdDialog", "$mdPanel", "$interval", "$timeout",
-        "ServicesStatusData", "OpsManagerDashboardService",
-        "BroadcastService", '$filter']
+                        "$mdDialog", "$mdPanel", "$interval", "$timeout",
+                        "ServicesStatusData", "OpsManagerDashboardService",
+                        "BroadcastService", '$filter'];
 
-    constructor(private $scope: any,
-                private $element: any,
+    constructor(private $scope: IScope,
+                private $element: JQuery,
                 private $http: angular.IHttpService,
                 private $mdDialog: angular.material.IDialogService,
                 private $mdPanel: angular.material.IPanelService,
@@ -180,61 +180,6 @@ export default class controller implements ng.IComponentController {
                 private OpsManagerDashboardService: any,
                 private BroadcastService: any,
                 private $filter: angular.IFilterService) {
-        this.dataLoaded = false;
-        this.chartApi = {};
-
-        this.chartOptions = {
-            chart: {
-                type: 'pieChart',
-                x: (d: any) => {
-                    return d.key;
-                },
-                y: (d: any) => {
-                    return d.value;
-                },
-                showLabels: false,
-                duration: 100,
-                "height": 150,
-                labelThreshold: 0.01,
-                labelSunbeamLayout: false,
-                "margin": {"top": 10, "right": 10, "bottom": 10, "left": 10},
-                donut: true,
-                donutRatio: 0.65,
-                showLegend: false,
-                valueFormat: (d: any) => {
-                    return parseInt(d);
-                },
-                color: (d: any) => {
-                    if (d.key == 'HEALTHY') {
-                        return '#009933';
-                    }
-                    else if (d.key == 'UNHEALTHY') {
-                        return '#FF0000';
-                    }
-                    else if (d.key == 'WARNING') {
-                        return '#FF9901';
-                    }
-                },
-                pie: {
-                    dispatch: {
-                        'elementClick': (e: any) => {
-                            this.openDetailsDialog(e.data.key);
-                        }
-                    }
-                },
-                dispatch: {
-                    renderEnd: () => {
-
-                    }
-                }
-            }
-        };
-
-
-        this.validateTitle();
-
-        this.indicator = new Indicator(this.chartOptions, this.$filter);
-
 
     }// end of constructor
 
@@ -257,8 +202,35 @@ export default class controller implements ng.IComponentController {
 
     openDetailsDialog(key: any) {
         this.$mdDialog.show({
-            controller: "ServicesDetailsDialogController",
-            templateUrl: 'js/ops-mgr/overview/services-indicator/services-details-dialog.html',
+            controller: ["$scope", "$mdDialog", "$interval", "StateService", "status",
+            "selectedStatusData", ($scope: any,$mdDialog: any,$interval: any,StateService: any,status: any,selectedStatusData: any) => {
+                $scope.css = status == "UNHEALTHY" ? "md-warn" : "";
+                $scope.status = status
+                $scope.services = selectedStatusData.data;
+
+                _.each($scope.services, (service: any) => {
+                    service.componentMessage = null;
+                    if (service.components.length == 1) {
+                        service.componentName = service.components[0].name;
+                        service.componentMessage = service.components[0].message;
+                    }
+                });
+
+                $scope.hide = () => {
+                    $mdDialog.hide();
+
+                };
+
+                $scope.gotoServiceDetails = (serviceName: any) => {
+                    $mdDialog.hide();
+                    StateService.OpsManager().ServiceStatus().navigateToServiceDetails(serviceName);
+                }
+
+                $scope.cancel = () => {
+                    $mdDialog.cancel();
+                };
+            }],
+            templateUrl: './services-details-dialog.html',
             parent: angular.element(document.body),
             clickOutsideToClose: true,
             fullscreen: true,
@@ -298,67 +270,66 @@ export default class controller implements ng.IComponentController {
 
     ngOnInit() {
         this.watchDashboard();
-    }
-}
 
+        this.chartOptions = {
+            chart: {
+                type: 'pieChart',
+                x: (d: any) => {
+                    return d.key;
+                },
+                y: (d: any) => {
+                    return d.value;
+                },
+                showLabels: false,
+                duration: 100,
+                "height": 150,
+                labelThreshold: 0.01,
+                labelSunbeamLayout: false,
+                "margin": {"top": 10, "right": 10, "bottom": 10, "left": 10},
+                donut: true,
+                donutRatio: 0.62,
+                showLegend: false,
+                valueFormat: (d: any) => {
+                    return parseInt(d);
+                },
+                color: (d: any) => {
+                    if (d.key == 'HEALTHY') {
+                        return '#388e3c';
+                    }
+                    else if (d.key == 'UNHEALTHY') {
+                        return '#b71c1c';
+                    }
+                    else if (d.key == 'WARNING') {
+                        return '#d84315';
+                    }
+                },
+                pie: {
+                    dispatch: {
+                        'elementClick': (e: any) => {
+                            this.openDetailsDialog(e.data.key);
+                        }
+                    }
+                },
+                dispatch: {
+                    renderEnd: () => {
 
-export class servicesDetailsDialogController implements ng.IComponentController {
-    constructor(private $scope: any,
-                private $mdDialog: any,
-                private $interval: any,
-                private StateService: any,
-                private status: any,
-                private selectedStatusData: any) {
-        $scope.css = status == "UNHEALTHY" ? "md-warn" : "";
-        $scope.status = status
-        $scope.services = selectedStatusData.data;
-
-        _.each($scope.services, (service: any) => {
-            service.componentMessage = null;
-            if (service.components.length == 1) {
-                service.componentName = service.components[0].name;
-                service.componentMessage = service.components[0].message;
+                    }
+                }
             }
-        });
-
-        $scope.hide = () => {
-            $mdDialog.hide();
-
         };
 
-        $scope.gotoServiceDetails = (serviceName: any) => {
-            $mdDialog.hide();
-            StateService.OpsManager().ServiceStatus().navigateToServiceDetails(serviceName);
-        }
 
-        $scope.cancel = () => {
-            $mdDialog.cancel();
-        };
+        this.validateTitle();
+
+        this.indicator = new Indicator(this.chartOptions, this.$filter);
     }
 }
 
-
-angular.module(moduleName).controller('ServicesDetailsDialogController',
-    ["$scope", "$mdDialog", "$interval", "StateService", "status",
-        "selectedStatusData", servicesDetailsDialogController]);
-angular.module(moduleName).controller('ServicesIndicatorController', controller);
-
-angular.module(moduleName)
-    .directive('tbaServicesIndicator', [() => {
-        return {
-            restrict: "EA",
-            scope: {},
-            bindToController: {
-                panelTitle: "@"
-            },
-            controllerAs: 'vm',
-            templateUrl: 'js/ops-mgr/overview/services-indicator/services-indicator-template.html',
-            controller: "ServicesIndicatorController",
-            link: function ($scope: any, element: any, attrs: any) {
-                $scope.$on('$destroy', () => {
-
-                });
-            } //DOM manipulation\}
-        }
-
-    }]);
+angular.module(moduleName).component('tbaServicesIndicator', {
+    controller: controller,
+    bindings: {
+        panelTitle: "@"
+    },
+    controllerAs: "vm",
+    templateUrl: "./services-indicator-template.html"
+});

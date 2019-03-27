@@ -1,82 +1,79 @@
 import * as angular from 'angular';
 import {moduleName} from "../module-name";
-//const moduleName = require('../module-name');
 import * as _ from 'underscore';
+import {Transition} from "@uirouter/core";
+import SearchService from "../../services/SearchService";
+import {Utils} from "../../services/Utils";
+import {CategoriesService} from "../../feed-mgr/services/CategoriesService";
+import {StateService} from "../../services/StateService";
+import {FeedService} from "../../feed-mgr/services/FeedService";
+import {DefaultPaginationDataService} from "../../services/PaginationDataService";
+import {DatasourcesService} from "../../feed-mgr/services/DatasourcesService";
+import "../module";
+import "../module-require";
 
-export class controller implements ng.IComponentController{
-        /**
-         * The result object of what is returned from the search query
-         * @type {null}
-         */
-        searchResult: any = null;
+export class SearchController implements ng.IComponentController{
+$transition$: Transition;
+/**
+ * The result object of what is returned from the search query
+ * @type {null}
+ */
+searchResult: any = null;
+/**
+ * flag to indicate we are querying/searching
+ * @type {boolean}
+ */
+searching: boolean = false;
+resetPaging = this.$transition$.params().bcExclude_globalSearchResetPaging || false;
+//Page Name
+pageName: string = "search";
+/**
+ * Pagination data
+ * @type {{rowsPerPage: number, currentPage: number, rowsPerPageOptions: [*]}}
+ */
+paginationData: any =  this.PaginationDataService.paginationData(this.pageName, this.pageName,10);
+hiveDatasource: any = this.DatasourcesService.getHiveDatasource();
+currentPage: any = this.PaginationDataService.currentPage(this.pageName) || 1;
+categoryForIndex = (indexName: any)=> {
+    var category = this.CategoriesService.findCategoryByName(indexName);
+    if (category != null) {
+        return category;
+    }
+    return null;
+};
 
-        /**
-         * flag to indicate we are querying/searching
-         * @type {boolean}
-         */
-        searching: any = false;
-
-        resetPaging = this.$transition$.params().bcExclude_globalSearchResetPaging || false;
-
-        //Pagination Data
-        pageName: any = "search";
-        /**
-         * Pagination data
-         * @type {{rowsPerPage: number, currentPage: number, rowsPerPageOptions: [*]}}
-         */
-        paginationData: any =  this.PaginationDataService.paginationData(this.pageName, this.pageName,10);
-        //this.getPaginatedData();
-
-    /*    getPaginatedData () {
-            this.PaginationDataService.paginationData(this.pageName, this.pageName,10);
-            this.PaginationDataService.setRowsPerPageOptions(this.pageName, ['5', '10', '20', '50', '100']);
-        }*/
-     //  this.PaginationDataService.setRowsPerPageOptions(this.pageName, ['5', '10', '20', '50', '100']);
-     
-        hiveDatasource: any = this.DatasourcesService.getHiveDatasource();
-      
-        currentPage: any = this.PaginationDataService.currentPage(this.pageName) || 1;
-
-          categoryForIndex = (indexName: any)=> {
-            var category = this.CategoriesService.findCategoryByName(indexName);
-            if (category != null) {
-                return category;
-            }
-            return null;
-        };
-
-constructor(private $scope: any, 
-            private $sce: any,
-            private $http: any,
-            private $mdToast: any,
-            private $mdDialog: any, 
-            private $transition$: any,
-            private SearchService: any,
-            private Utils: any,
-            private CategoriesService: any,
-            private StateService: any,
-            private FeedService: any,
-            private PaginationDataService: any,
-            private DatasourcesService: any){
-        
-                this.$scope.$watch(() => {
-                    return this.SearchService.searchQuery;
-                }, (newVal: any,oldVal: any) => {
-                        if(newVal != oldVal || this.searchResult == null || this.resetPaging == true) {
-                        var resetCurrentPage = ((newVal != oldVal) || (this.resetPaging == true));
-                        this.search(resetCurrentPage);
-                    }
-                });
-       
+static readonly $inject = ["$scope","$sce","$http","$mdToast","$mdDialog","SearchService","Utils","CategoriesService","StateService", "FeedService","PaginationDataService","DatasourcesService"];
+constructor(private $scope: angular.IScope, 
+            private $sce: angular.ISCEService,
+            private $http: angular.IHttpService,
+            private $mdToast: angular.material.IToastService,
+            private $mdDialog: angular.material.IDialogService, 
+            //private $transition$: any,
+            private SearchService: SearchService,
+            private Utils: Utils,
+            private CategoriesService: CategoriesService,
+            private StateService: StateService,
+            private FeedService: FeedService,
+            private PaginationDataService: DefaultPaginationDataService,
+            private DatasourcesService: DatasourcesService){
+            this.$scope.$watch(() => {
+                return this.SearchService.searchQuery;
+            }, (newVal: any,oldVal: any) => {
+                    if(newVal != oldVal || this.searchResult == null || this.resetPaging == true) {
+                    var resetCurrentPage = ((newVal != oldVal) || (this.resetPaging == true));
+                    this.search(resetCurrentPage);
+                }
+            });
+    
            this.PaginationDataService.setRowsPerPageOptions(this.pageName, ['5', '10', '20', '50', '100']);
-       }
+        }
         search = (resetCurrentPage: any)=>{
             if(resetCurrentPage == undefined || resetCurrentPage == true) {
                 this.PaginationDataService.currentPage(this.pageName, null, 1);
                 this.currentPage = 1;
             }
-                this._search();
-         };
+            this._search();
+         }
 
             _search = function () {
             this.searchError = null;
@@ -120,42 +117,44 @@ constructor(private $scope: any,
         };
 
     onSearchResultItemClick($event: any, result: any) {
-            switch (result.type) {
-                case "KYLO_DATA":
-                    this.StateService.Tables().navigateToTable(this.hiveDatasource.id, this.cleanValue(result.schemaName), this.cleanValue(result.tableName));
-                    break;
+        let feedSystemName: any;
+        let categorySystemName: any;
 
-                case "KYLO_SCHEMA":
-                    this.StateService.Tables().navigateToTable(this.hiveDatasource.id, this.cleanValue(result.databaseName), this.cleanValue(result.tableName));
-                    break;
-
-                case "KYLO_FEEDS":
-                    var category;
-                    var feed;
-
-                    this.CategoriesService.getCategoryById(this.cleanValue(result.feedCategoryId))
-                                          .then((category1: any)=> {
-                                                category = category1;
-                                                this.FeedService.getFeedByName(category.systemName + "." + (result.feedSystemName.replace('[', '').replace(']', '')))
-                                                                .then((feed1: any) =>{
-                                                                    feed = feed1;
-                                                                    this.StateService.FeedManager().Feed().navigateToFeedDetails(feed.id);
-                                                                });
+        switch (result.type) {
+            case "KYLO_DATA":
+                categorySystemName = result.schemaName;
+                feedSystemName = result.tableName;
+                this.FeedService.getFeedByName(categorySystemName + "." + feedSystemName)
+                    .then((feed: any) => {
+                        this.StateService.FeedManager().Feed().navigateToFeedDetails(feed.id);
                     });
-                    break;
+                break;
 
-                case "KYLO_CATEGORIES":
-                    this.CategoriesService.getCategoryBySystemName(this.cleanValue(result.categorySystemName))
-                                          .then((category: any)=> {
-                                            this.StateService.Categories().navigateToCategoryDetails(category.id);
+            case "KYLO_SCHEMA":
+                categorySystemName = result.databaseName;
+                feedSystemName = result.tableName;
+                this.FeedService.getFeedByName(categorySystemName + "." + feedSystemName)
+                    .then((feed: any) => {
+                        this.StateService.FeedManager().Feed().navigateToFeedDetails(feed.id);
                     });
-                    break;
+                break;
 
-                case "KYLO_UNKNOWN":
-                    break;
+            case "KYLO_FEEDS":
+                this.StateService.FeedManager().Feed().navigateToFeedDetails(result.feedId);
+                break;
 
-                default:
-                    break;
+            case "KYLO_CATEGORIES":
+                this.CategoriesService.getCategoryBySystemName(this.cleanValue(result.categorySystemName))
+                                      .then((category: any)=> {
+                                        this.StateService.Categories().navigateToCategoryDetails(category.id);
+                });
+                break;
+
+            case "KYLO_UNKNOWN":
+                break;
+
+            default:
+                break;
             }
         };
 
@@ -165,7 +164,17 @@ constructor(private $scope: any,
 
 }
 
-angular.module(moduleName).controller('SearchController',
+const module = angular.module(moduleName)
+  .component("searchController", { 
+        bindings: {
+            $transition$: '<'
+        },
+        controller: SearchController,
+        controllerAs: "vm",
+        templateUrl: "./search.html"
+    });
+export default module;
+/*angular.module(moduleName).controller('SearchController',
                         ["$scope", 
                         "$sce", 
                         "$http", 
@@ -179,4 +188,4 @@ angular.module(moduleName).controller('SearchController',
                         "FeedService",
                         "PaginationDataService", 
                         "DatasourcesService",
-                        controller]);
+                        controller]);*/

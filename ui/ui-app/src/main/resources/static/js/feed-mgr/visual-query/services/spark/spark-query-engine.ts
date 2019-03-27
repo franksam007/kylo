@@ -1,24 +1,27 @@
-import {HttpClient} from "@angular/common/http";
-import {Injector} from "@angular/core";
-import * as angular from "angular";
+import {HttpClient, HttpErrorResponse} from "@angular/common/http";
+import {Inject, Injectable, Injector} from "@angular/core";
+import {TdDialogService} from "@covalent/core/dialogs";
 import {Program} from "estree";
 import "rxjs/add/observable/empty";
 import "rxjs/add/observable/fromPromise";
 import "rxjs/add/observable/interval";
-import "rxjs/add/operator/catch";
 import "rxjs/add/operator/expand";
 import "rxjs/add/operator/map";
 import "rxjs/add/operator/mergeMap";
-import "rxjs/add/operator/take";
 import {Observable} from "rxjs/Observable";
+import {catchError} from "rxjs/operators/catchError";
+import {mergeMap} from "rxjs/operators/mergeMap";
+import {take} from "rxjs/operators/take";
 import {Subject} from "rxjs/Subject";
 import * as _ from "underscore";
 
 import {SchemaField} from "../../../model/schema-field";
 import {TableSchema} from "../../../model/table-schema";
 import {UserDatasource} from "../../../model/user-datasource";
-import {DatasourcesServiceStatic} from "../../../services/DatasourcesService.typings";
-import {SqlDialect} from "../../../services/VisualQueryService";
+import {DatasourcesService, TableReference} from "../../../services/DatasourcesServiceIntrefaces";
+import {HiveService} from "../../../services/HiveService";
+import {RestUrlService} from "../../../services/RestUrlService";
+import {SqlDialect, VisualQueryService} from "../../../services/VisualQueryService";
 import {DIALOG_SERVICE} from "../../wrangler/api/index";
 import {SaveRequest, SaveResponse, SaveResponseStatus} from "../../wrangler/api/rest-model";
 import {DialogService} from "../../wrangler/api/services/dialog.service";
@@ -27,47 +30,37 @@ import {ColumnDelegate} from "../../wrangler/column-delegate";
 import {QueryResultColumn} from "../../wrangler/model/query-result-column";
 import {ScriptState} from "../../wrangler/model/script-state";
 import {TransformResponse} from "../../wrangler/model/transform-response";
-import {QueryEngine} from "../../wrangler/query-engine";
-import {registerQueryEngine} from "../../wrangler/query-engine-factory.service";
+import {PageSpec, QueryEngine} from "../../wrangler/query-engine";
 import {SparkColumnDelegate} from "./spark-column";
 import {SparkConstants} from "./spark-constants";
-import {SparkQueryParser} from "./spark-query-parser";
+import {DATASET_PROVIDER, SparkQueryParser} from "./spark-query-parser";
 import {SparkScriptBuilder} from "./spark-script-builder";
-import {PageSpec} from "../../wrangler/query-engine";
+import {HttpBackendClient} from "../../../../services/http-backend-client";
 
 /**
  * Generates a Scala script to be executed by Kylo Spark Shell.
  */
+@Injectable()
 export class SparkQueryEngine extends QueryEngine<string> {
+
+    private readonly VALID_NAME_PATTERN = /[^a-zA-Z0-9\s_]|\s/g;
 
     /**
      * URL to the API server
      */
-    private apiUrl: string;
-
-    /**
-     * Wrangler dialog service.
-     */
-    private dialog: DialogService;
-
-    private VALID_NAME_PATTERN = /[^a-zA-Z0-9\s_]|\s/g;
-
-    static readonly $inject: string[] = ["$http", "$mdDialog", "$timeout", "DatasourcesService", "HiveService", "RestUrlService", "uiGridConstants", "VisualQueryService", "$$wranglerInjector"];
+    private readonly apiUrl: string;
 
     /**
      * Constructs a {@code SparkQueryEngine}.
      */
-    constructor(private $http: angular.IHttpService, $mdDialog: angular.material.IDialogService, private $timeout: angular.ITimeoutService,
-                DatasourcesService: DatasourcesServiceStatic.DatasourcesService, private HiveService: any, private RestUrlService: any, uiGridConstants: any, private VisualQueryService: any,
-                private $$angularInjector?: Injector) {
-        super($mdDialog, DatasourcesService, uiGridConstants, $$angularInjector);
-
-        // Initialize properties
-        this.apiUrl = RestUrlService.SPARK_SHELL_SERVICE_URL;
-        this.dialog = $$angularInjector.get(DIALOG_SERVICE);
+    constructor(private $http: HttpClient, dialog: TdDialogService, @Inject(DIALOG_SERVICE) private wranglerDialog: DialogService, @Inject("HiveService") private HiveService: HiveService,
+                @Inject("RestUrlService") private RestUrlService: RestUrlService, @Inject("VisualQueryService") private VisualQueryService: VisualQueryService, private $$angularInjector: Injector,
+                @Inject("DatasourcesService") datasourcesService: any, @Inject("uiGridConstants") uiGridConstants: any, private httpBackendClient:HttpBackendClient) {
+        super(dialog, datasourcesService, uiGridConstants, $$angularInjector);
 
         // Ensure Kylo Spark Shell is running
-        $http.post(RestUrlService.SPARK_SHELL_SERVICE_URL + "/start", null);
+        this.apiUrl = this.RestUrlService.SPARK_SHELL_SERVICE_URL;
+        $http.post(this.RestUrlService.SPARK_SHELL_SERVICE_URL + "/start", null).subscribe();
     }
 
     /**
@@ -114,7 +107,7 @@ export class SparkQueryEngine extends QueryEngine<string> {
      * Creates a column delegate of the specified data type.
      */
     createColumnDelegate(dataType: string, controller: ColumnController, column: any): ColumnDelegate {
-        return new SparkColumnDelegate(column, dataType, controller, this.$mdDialog, this.uiGridConstants, this.dialog, this.$$angularInjector.get(HttpClient), this.RestUrlService);
+        return new SparkColumnDelegate(column, dataType, controller, this.dialog, this.uiGridConstants, this.wranglerDialog, this.httpBackendClient, this.RestUrlService);
     }
 
     /**
@@ -134,12 +127,12 @@ export class SparkQueryEngine extends QueryEngine<string> {
     }
 
     /**
-     * Gets the schema fields for the the current transformation.
+     * Gets the schema fields  for the the current transformation.
      *
      * @returns the schema fields or {@code null} if the transformation has not been applied
      */
     getFields(): SchemaField[] | null {
-        var self = this;
+        const self = this;
         // Get list of columns
         const columns = this.getColumns();
         if (columns === null) {
@@ -157,7 +150,7 @@ export class SparkQueryEngine extends QueryEngine<string> {
             } else {
                 dataType = col.dataType;
             }
-            var name = angular.isDefined(col.displayName) ? self.getValidHiveColumnName(col.displayName) : col.hiveColumnLabel;
+            const name = (typeof col.displayName != "undefined") ? self.getValidHiveColumnName(col.displayName) : col.hiveColumnLabel;
 
             const colDef = {name: name, description: col.comment, dataType: dataType, primaryKey: false, nullable: false, sampleValues: []} as SchemaField;
             if (dataType === 'decimal') {
@@ -197,8 +190,19 @@ export class SparkQueryEngine extends QueryEngine<string> {
         let sparkScript = "import org.apache.spark.sql._\n";
 
         if (start === 0) {
-            sparkScript += this.source_;
-            sparkScript += SparkConstants.DATA_FRAME_VARIABLE + " = " + SparkConstants.DATA_FRAME_VARIABLE;
+
+
+            if (this.hasSampleFile()) {
+                //we are working with a file.. add the spark code to use it
+                //extract options out from a variable to do the parsing
+                sparkScript += this.sampleFile.script;
+                sparkScript += "\n";
+                sparkScript += SparkConstants.DATA_FRAME_VARIABLE + " = " + SparkConstants.DATA_FRAME_VARIABLE;
+            } else {
+                sparkScript += this.source_;
+                sparkScript += SparkConstants.DATA_FRAME_VARIABLE + " = " + SparkConstants.DATA_FRAME_VARIABLE;
+            }
+            //limit
             if (sample && this.limitBeforeSample_ && this.limit_ > 0) {
                 sparkScript += ".limit(" + this.limit_ + ")";
             }
@@ -213,9 +217,22 @@ export class SparkQueryEngine extends QueryEngine<string> {
         } else {
             sparkScript += "var " + SparkConstants.DATA_FRAME_VARIABLE + " = parent\n";
         }
-
+        let dsProvider = DATASET_PROVIDER;
+        let joinDataSetIds :string[] = [];
         for (let i = start; i < end; ++i) {
-            sparkScript += SparkConstants.DATA_FRAME_VARIABLE + " = " + SparkConstants.DATA_FRAME_VARIABLE + this.states_[i].script + "\n";
+            if (!this.states_[i].inactive) {
+                let state = this.states_[i];
+                if(state.joinDataSet != undefined && state.joinDataSet != null) {
+                    if(joinDataSetIds.indexOf(state.joinDataSet.datasetId) <0){
+                        joinDataSetIds.push(state.joinDataSet.datasetId);
+                        sparkScript +=state.joinDataSet.joinDataFrameVarScript+"\n";
+                    }
+
+                    sparkScript += state.joinDataSet.joinScript;
+                }
+                sparkScript += SparkConstants.DATA_FRAME_VARIABLE + " = " + SparkConstants.DATA_FRAME_VARIABLE + this.states_[i].script + "\n";
+
+            }
         }
 
         sparkScript += SparkConstants.DATA_FRAME_VARIABLE + "\n";
@@ -232,15 +249,7 @@ export class SparkQueryEngine extends QueryEngine<string> {
      */
     getTableSchema(schema: string, table: string, datasourceId: string): Promise<TableSchema> {
         if (datasourceId === SparkConstants.HIVE_DATASOURCE) {
-            const self = this;
-            return new Promise((resolve, reject) => {
-                self.$http.get(self.RestUrlService.HIVE_SERVICE_URL + "/schemas/" + schema + "/tables/" + table)
-                    .then(function (response: any) {
-                        resolve(response.data);
-                    }, function (response: any) {
-                        reject(response.data);
-                    });
-            });
+            return this.$http.get<TableSchema>(this.RestUrlService.HIVE_SERVICE_URL + "/schemas/" + schema + "/tables/" + table).toPromise();
         } else {
             return super.getTableSchema(schema, table, datasourceId);
         }
@@ -251,9 +260,9 @@ export class SparkQueryEngine extends QueryEngine<string> {
      */
     getTernjsDefinitions(): Promise<any> {
         return new Promise((resolve, reject) => {
-            this.$http.get(this.RestUrlService.UI_BASE_URL + "/spark-functions")
+            this.$http.get(this.RestUrlService.UI_BASE_URL + "/spark-functions").toPromise()
                 .then(function (response: any) {
-                    resolve(response.data);
+                    resolve(response);
                 }, function (err: string) {
                     reject(err);
                 });
@@ -278,55 +287,58 @@ export class SparkQueryEngine extends QueryEngine<string> {
             request.jdbc = null;
         }
 
+        //add in the datasets
+        if (this.datasets !== null) {
+            body["catalogDatasets"] = this.datasets;
+        }
+
+        if(this.catalogDataSources_ != null) {
+            body['catalogDataSources'] = this.catalogDataSources_;
+        }
+
         // Send the request
         let transformId: string;
 
-        return Observable
-        // Send transform script
-            .fromPromise(this.$http<TransformResponse>({
-                method: "POST",
-                url: this.apiUrl + "/transform",
-                data: JSON.stringify(body),
-                headers: {"Content-Type": "application/json"},
-                responseType: "json"
-            }))
-            // Send save request
+
+
+        return this.$http.post<TransformResponse>(this.apiUrl + "/transform", JSON.stringify(body), {
+            headers: {"Content-Type": "application/json"},
+            responseType: "json"
+        })
+        // Send save request
             .mergeMap(response => {
-                transformId = response.data.table;
-                return this.$http<SaveResponse>({
-                    method: "POST",
-                    url: this.apiUrl + "/transform/" + transformId + "/save",
-                    data: JSON.stringify(request),
+                transformId = response.table;
+                return this.$http.post<SaveResponse>(this.apiUrl + "/transform/" + transformId + "/save", JSON.stringify(request), {
                     headers: {"Content-Type": "application/json"},
                     responseType: "json"
                 });
             })
             // Wait for save to complete
             .expand(response => {
-                if (response.data.status === SaveResponseStatus.PENDING) {
+                if (response.status === SaveResponseStatus.PENDING ) {
                     return Observable.interval(1000)
-                        .take(1)
-                        .mergeMap(() => this.$http<SaveResponse>({
-                            method: "GET",
-                            url: this.apiUrl + "/transform/" + transformId + "/save/" + response.data.id,
-                            responseType: "json"
-                        }));
-                } else if (response.data.status === SaveResponseStatus.SUCCESS) {
+                        .pipe(
+                            take(1),
+                            mergeMap(() => this.$http.get<SaveResponse>(this.apiUrl + "/transform/" + transformId + "/save/" + response.id, {responseType: "json"})),
+                            catchError((error: SaveResponse) => {
+                                if (error.id == null) {
+                                    error.id = response.id;
+                                }
+                                return Observable.throw(error);
+                            })
+                        );
+                } else if (response.status === SaveResponseStatus.SUCCESS) {
                     return Observable.empty();
                 } else {
                     throw response;
                 }
             })
             // Map result to SaveResponse
-            .map(response => {
-                const save = response.data;
+            .map(save => {
                 if (save.location != null && save.location.startsWith("./")) {
                     save.location = this.apiUrl + "/transform/" + transformId + "/save/" + save.id + save.location.substr(1);
                 }
                 return save;
-            })
-            .catch((response: angular.IHttpResponse<SaveResponse>): Observable<SaveResponse> => {
-                throw response.data;
             });
     }
 
@@ -337,17 +349,35 @@ export class SparkQueryEngine extends QueryEngine<string> {
      * @param datasourceId - datasource to search
      * @returns the list of table references
      */
-    searchTableNames(query: string, datasourceId: string): DatasourcesServiceStatic.TableReference[] | Promise<DatasourcesServiceStatic.TableReference[]> {
+    searchTableNames(query: string, datasourceId: string): TableReference[] | Promise<TableReference[]> {
         if (datasourceId === SparkConstants.HIVE_DATASOURCE) {
             const tables = this.HiveService.queryTablesSearch(query);
             if (tables.then) {
                 return new Promise((resolve, reject) => tables.then(resolve, reject));
             } else {
-                return tables;
+                return tables as any;
             }
         } else {
             return super.searchTableNames(query, datasourceId);
         }
+    }
+
+    decodeError(msg: string): string {
+        if (msg != null) {
+
+            if (msg.indexOf("Cannot read property") > -1) {
+                msg = "Please ensure fieldnames are correct.";
+            } else if (msg.indexOf("Program is too long") > -1) {
+                msg = "Please check parenthesis align."
+            } else if (msg.indexOf("MatchError: ") > -1) {
+                msg = "Please remove, impute, or replace all empty values and try again."
+            } else if (msg.indexOf("AnalysisException: Can't extract value from ") > -1) {
+                msg = "Action would invalidate downstream transformations or requires an upstream transformation that has been disabled.";
+            } else if (msg.indexOf("Unsupported literal type class [D") > -1) {
+                msg = "Function not available on present version of Spark.";
+            }
+        }
+        return msg;
     }
 
     /**
@@ -370,15 +400,21 @@ export class SparkQueryEngine extends QueryEngine<string> {
         };
         let index = this.states_.length - 1;
 
-        if (index > 0) {
+        if (index > -1) {
             // Find last cached state
             let last = index - 1;
-            while (last >= 0 && this.states_[last].table === null) {
+            while (last >= 0 && (this.states_[last].table === null)) {
                 --last;
             }
 
             // Add script to body
-            body["script"] = this.getScript(last + 1, index);
+            if (!this.hasStateChanged()) {
+                body["script"] = "import org.apache.spark.sql._\nvar df = parent\ndf";
+                last = index;
+            } else {
+                body["script"] = this.getScript(last + 1, index);
+            }
+
             if (last >= 0) {
                 body["parent"] = {
                     table: this.states_[last].table,
@@ -393,86 +429,84 @@ export class SparkQueryEngine extends QueryEngine<string> {
         if (this.datasources_ !== null) {
             body["datasources"] = this.datasources_.filter(datasource => datasource.id !== SparkConstants.HIVE_DATASOURCE);
         }
+        //add in the datasets
+        if (this.datasets !== null) {
+            body["catalogDatasets"] = this.datasets;
+        }
+
+        if(this.catalogDataSources_ != null) {
+            body['catalogDataSources'] = this.catalogDataSources_;
+        }
 
         // Create the response handlers
         let self = this;
         let deferred = new Subject();
 
-        let successCallback = function (response: angular.IHttpResponse<TransformResponse>) {
+        let successCallback = function (response: TransformResponse) {
             let state = self.states_[index];
-
+            self.resetStateChange();
             // Check status
-            if (response.data.status === "PENDING") {
+            if (response.status === "PENDING") {
 
+                deferred.next(response.progress);
 
-                if (state.columns === null && response.data.results && response.data.results.columns) {
-
-                //Unnecessary and causes table refresh problems
-                    // state.columns = response.data.results.columns;
-                    // state.rows = [];
-                    // state.table = response.data.table;
-                    // self.updateFieldPolicies(state);
-                }
-
-                deferred.next(response.data.progress);
-
-                self.$timeout(function () {
-                    self.$http<TransformResponse>({
-                        method: "GET",
-                        url: self.apiUrl + "/transform/" + response.data.table,
+                setTimeout(function () {
+                    self.$http.get<TransformResponse>(self.apiUrl + "/transform/" + response.table, {
                         headers: {"Content-Type": "application/json"},
                         responseType: "json"
-                    }).then(successCallback, errorCallback);
-                }, 500, false);
+                    }).toPromise().then(successCallback, errorCallback);
+                }, 250, false);
                 return;
             }
-            if (response.data.status !== "SUCCESS") {
+            if (response.status !== "SUCCESS") {
                 deferred.error("Unexpected server status.");
                 return;
             }
 
             // Verify column names
-            let invalid = _.find(response.data.results.columns, function (column: any) {
+            let invalid = _.find(response.results.columns, function (column: any) {
                 return (column.hiveColumnLabel.match(/[.`]/) !== null);  // Escaping backticks not supported until Spark 2.0
             });
-            let reserved = _.find(response.data.results.columns, function (column: any) {
-                return (column.hiveColumnLabel === "processing_dttm");
+            let reserved = _.find(response.results.columns, function (column: any) {
+                return SparkConstants.RESERVED_COLUMN_NAMES.indexOf(column.hiveColumnLabel) >=0;
             });
 
-            if (angular.isDefined(invalid)) {
+            if (typeof invalid != "undefined") {
                 state.rows = [];
                 state.columns = [];
                 deferred.error("Column name '" + invalid.hiveColumnLabel + "' is not supported. Please choose a different name.");
-            } else if (angular.isDefined(reserved)) {
+            } else if (typeof reserved != "undefined") {
                 state.rows = [];
                 state.columns = [];
                 deferred.error("Column name '" + reserved.hiveColumnLabel + "' is reserved. Please choose a different name.");
             } else {
                 // Update state
-                state.profile = response.data.profile;
-                state.rows = response.data.results.rows;
-                state.table = response.data.table;
-                state.validationResults = response.data.results.validationResults;
-                state.actualCols = response.data.actualCols;
-                state.actualRows = response.data.actualRows;
-                state.columns = response.data.results.columns;
+                state.profile = response.profile;
+                state.rows = response.results.rows;
+                state.table = response.table;
+                state.validationResults = response.results.validationResults;
+                state.actualCols = response.actualCols;
+                state.actualRows = response.actualRows;
+                state.columns = response.results.columns;
                 self.updateFieldPolicies(state);
 
                 // Indicate observable is complete
                 deferred.complete();
             }
         };
-        let errorCallback = function (response: angular.IHttpResponse<TransformResponse>) {
+        let errorCallback = function (response: HttpErrorResponse) {
             // Update state
             let state = self.states_[index];
             state.columns = [];
             state.rows = [];
+            self.resetStateChange();
 
             // Respond with error message
             let message;
 
-            if (angular.isString(response.data.message)) {
-                message = (response.data.message.length <= 1024) ? response.data.message : response.data.message.substr(0, 1021) + "...";
+            if (response.error !== undefined && response.error.message != null) {
+                message = self.decodeError(response.error.message.toString());
+                message = (message.length <= 1024) ? message : message.substr(0, 1021) + "...";
             } else {
                 message = "An unknown error occurred.";
             }
@@ -480,14 +514,13 @@ export class SparkQueryEngine extends QueryEngine<string> {
             deferred.error(message);
         };
 
+
+
         // Send the request
-        self.$http<TransformResponse>({
-            method: "POST",
-            url: this.apiUrl + "/transform",
-            data: JSON.stringify(body),
+        self.httpBackendClient.post<TransformResponse>(this.apiUrl + "/transform", JSON.stringify(body), {
             headers: {"Content-Type": "application/json"},
             responseType: "json"
-        }).then(successCallback, errorCallback);
+        }).toPromise().then(successCallback, errorCallback);
         return deferred;
     }
 
@@ -502,7 +535,7 @@ export class SparkQueryEngine extends QueryEngine<string> {
      * Parses the specified source into a script for the initial state.
      */
     protected parseQuery(source: any): string {
-        return new SparkQueryParser(this.VisualQueryService).toScript(source, this.datasources_);
+        return new SparkQueryParser(this.VisualQueryService).toScript(source, this.datasources_, this.catalogDataSources_);
     }
 
     /**
@@ -510,32 +543,32 @@ export class SparkQueryEngine extends QueryEngine<string> {
      * @param {ScriptState<string>} state
      */
     private updateFieldPolicies(state: ScriptState<string>) {
-        var self = this;
+        const self = this;
         if (state.fieldPolicies != null && state.fieldPolicies.length > 0) {
             const policyMap = {};
-                state.fieldPolicies.forEach(policy => {
-                    policyMap[policy.name] = policy;
-                });
+            state.fieldPolicies.forEach(policy => {
+                policyMap[policy.name] = policy;
+            });
 
-                state.fieldPolicies = state.columns.map(column => {
-                    var name = angular.isDefined(column.displayName) ? self.getValidHiveColumnName(column.displayName) : column.hiveColumnLabel;
-                    if (policyMap[name]) {
-                        return policyMap[name];
-                    } else {
-                        return {
-                            name: name,
-                            fieldName: name,
-                            feedFieldName: name,
-                            domainTypeId: null,
-                            partition: null,
-                            profile: true,
-                            standardization: null,
-                            validation: null
-                        };
-                    }
-                });
+            state.fieldPolicies = state.columns.map(column => {
+                const name = (typeof column.displayName != "undefined") ? self.getValidHiveColumnName(column.displayName) : column.hiveColumnLabel;
+                if (policyMap[name]) {
+                    return policyMap[name];
+                } else {
+                    return {
+                        name: name,
+                        fieldName: name,
+                        feedFieldName: name,
+                        domainTypeId: null,
+                        partition: null,
+                        profile: true,
+                        standardization: null,
+                        validation: null
+                    };
+                }
+            });
         }
     }
+
 }
 
-registerQueryEngine("spark", SparkQueryEngine);

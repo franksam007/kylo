@@ -19,8 +19,7 @@
   #L%
   -->
 
-<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0"
->
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.0.0">
   <id>dependencies</id>
   <formats>
     <format>tar.gz</format>
@@ -44,6 +43,16 @@
     </dependencySet-->
   </dependencySets>
   <fileSets>
+    <!-- Create kylo-install-inspector folders -->
+    <fileSet>
+      <outputDirectory>/kylo-install-inspector/bin</outputDirectory>
+      <!-- This doesn't matter. Just have to specify a folder even though we aren't copying from it -->
+      <directory>.</directory>
+      <excludes>
+        <exclude>**/*</exclude>
+      </excludes>
+      <fileMode>755</fileMode>
+    </fileSet>
     <!-- Create UI folders. Most of the UI files are in the file section since they were individual files -->
     <fileSet>
       <outputDirectory>/kylo-ui/bin</outputDirectory>
@@ -107,6 +116,7 @@
         <include>datasource-styles.json</include>
         <include>icons.json</include>
         <include>icon-colors.json</include>
+        <include>repositories.json</include>
       </includes>
     </fileSet>
     <fileSet>
@@ -139,6 +149,22 @@
       <fileMode>755</fileMode>
       <includes>
         <include>spark.properties</include>
+      </includes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.parent.parent.basedir}/integrations/spark/spark-shell-client/spark-shell-client-app/src/main/config/rpm-build</directory>
+      <outputDirectory>kylo-services/conf</outputDirectory>
+      <fileMode>755</fileMode>
+      <includes>
+        <include>log4j-spark.properties</include>
+      </includes>
+    </fileSet>
+    <fileSet>
+      <directory>${project.parent.parent.basedir}/plugins/catalog-credential-vault/target</directory>
+      <outputDirectory>setup/plugins</outputDirectory>
+      <fileMode>755</fileMode>
+      <includes>
+        <include>kylo-catalog-credential-vault-${project.version}-jar-with-dependencies.jar</include>
       </includes>
     </fileSet>
     <fileSet>
@@ -328,11 +354,31 @@
     </fileSet>
     <fileSet>
       <outputDirectory>setup/data</outputDirectory>
-      <!-- This doesn't matter. Just have to specify a folder even though we aren't copying from it -->
       <directory>${project.parent.parent.basedir}/samples</directory>
       <fileMode>755</fileMode>
+      <excludes>
+        <exclude>**/node_modules/**</exclude>
+        <exclude>**/target/**</exclude>
+        <exclude>templates/**/*.json</exclude>
+        <exclude>feeds/**/*.json</exclude>
+      </excludes>
     </fileSet>
-
+    <fileSet>
+      <outputDirectory>setup/data/repository/templates</outputDirectory>
+      <directory>${project.parent.parent.basedir}/samples/templates/nifi-1.0</directory>
+      <fileMode>755</fileMode>
+      <excludes>
+        <exclude>**/*.json</exclude>
+      </excludes>
+    </fileSet>
+    <fileSet>
+      <outputDirectory>setup/data/repository/templates</outputDirectory>
+      <directory>${project.parent.parent.basedir}/samples/templates/nifi-1.5</directory>
+      <fileMode>755</fileMode>
+      <excludes>
+        <exclude>**/*.json</exclude>
+      </excludes>
+    </fileSet>
     <fileSet>
       <directory>${project.parent.parent.basedir}/metadata/metadata-modeshape/src/main/resources</directory>
       <outputDirectory>setup/config/kylo-cluster</outputDirectory>
@@ -366,6 +412,12 @@
     </fileSet>
 
     <fileSet>
+      <outputDirectory>setup/vault</outputDirectory>
+      <directory>${project.parent.basedir}/setup/vault</directory>
+      <fileMode>755</fileMode>
+    </fileSet>
+
+    <fileSet>
       <outputDirectory>setup/elasticsearch</outputDirectory>
       <directory>${project.parent.basedir}/setup/elasticsearch</directory>
       <fileMode>755</fileMode>
@@ -381,6 +433,24 @@
       <outputDirectory>setup/java</outputDirectory>
       <directory>${project.parent.basedir}/setup/java</directory>
       <fileMode>755</fileMode>
+    </fileSet>
+
+    <fileSet>
+      <directory>${project.parent.parent.basedir}/plugins/spark-shell-server/target</directory>
+      <outputDirectory>kylo-services/plugin</outputDirectory>
+      <fileMode>755</fileMode>
+      <includes>
+        <include>kylo-spark-shell-server-${project.version}.jar</include>
+      </includes>
+    </fileSet>
+
+    <fileSet>
+      <directory>${project.parent.parent.basedir}/plugins/spark-livy-server/target</directory>
+      <outputDirectory>setup/plugins</outputDirectory>
+      <fileMode>755</fileMode>
+      <includes>
+        <include>kylo-spark-livy-server-${project.version}.jar</include>
+      </includes>
     </fileSet>
 
     <fileSet>
@@ -407,6 +477,33 @@
       <fileMode>755</fileMode>
       <includes>
         <include>kylo-service-monitor-kylo-cluster-${project.version}.jar</include>
+      </includes>
+    </fileSet>
+
+    <fileSet>
+      <directory>${project.parent.parent.basedir}/plugins/catalog-filesystem-aws-hadoop-v2/target</directory>
+      <outputDirectory>kylo-services/plugin</outputDirectory>
+      <fileMode>755</fileMode>
+      <includes>
+        <include>kylo-catalog-filesystem-aws-hadoop-v2-${project.version}.jar</include>
+      </includes>
+    </fileSet>
+
+    <fileSet>
+      <directory>${project.parent.parent.basedir}/plugins/catalog-filesystem-aws-hadoop-v3/target</directory>
+      <outputDirectory>setup/plugins</outputDirectory>
+      <fileMode>755</fileMode>
+      <includes>
+        <include>kylo-catalog-filesystem-aws-hadoop-v3-${project.version}.jar</include>
+      </includes>
+    </fileSet>
+
+    <fileSet>
+      <directory>${project.parent.parent.basedir}/plugins/catalog-filesystem-azure/target</directory>
+      <outputDirectory>kylo-services/plugin</outputDirectory>
+      <fileMode>755</fileMode>
+      <includes>
+        <include>kylo-catalog-filesystem-azure-${project.version}.jar</include>
       </includes>
     </fileSet>
 
@@ -464,17 +561,22 @@
     </file>
     <file>
       <source>${project.parent.parent.basedir}/install/install-inspector/install-inspector-app/target/kylo-install-inspector-app-${project.version}.war</source>
-      <outputDirectory>lib/install-inspector</outputDirectory>
+      <outputDirectory>kylo-install-inspector/lib</outputDirectory>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <source>${project.parent.parent.basedir}/install/install-inspector/install-inspector-app/src/main/resources/logback-spring.xml</source>
+      <outputDirectory>kylo-install-inspector/conf</outputDirectory>
       <fileMode>755</fileMode>
     </file>
     <file>
       <source>${project.parent.parent.basedir}/install/install-inspector/install-inspector-api/target/kylo-install-inspector-api-${project.version}.jar</source>
-      <outputDirectory>lib/install-inspector/lib</outputDirectory>
+      <outputDirectory>kylo-install-inspector/inspections</outputDirectory>
       <fileMode>755</fileMode>
     </file>
     <file>
       <source>${project.parent.parent.basedir}/install/install-inspector/install-inspector-inspections/target/kylo-install-inspector-inspections-${project.version}.jar</source>
-      <outputDirectory>lib/install-inspector/lib</outputDirectory>
+      <outputDirectory>kylo-install-inspector/inspections</outputDirectory>
       <fileMode>755</fileMode>
     </file>
     <file>
@@ -531,12 +633,12 @@
     </file>
     <file>
       <source>${project.parent.parent.basedir}/integrations/spark/spark-shell-client/spark-shell-client-v1/target/kylo-spark-shell-client-v1-${project.version}.jar</source>
-      <outputDirectory>kylo-services/lib/app</outputDirectory>
+      <outputDirectory>kylo-services/plugin/app</outputDirectory>
       <fileMode>755</fileMode>
     </file>
     <file>
       <source>${project.parent.parent.basedir}/integrations/spark/spark-shell-client/spark-shell-client-v2/target/kylo-spark-shell-client-v2-${project.version}.jar</source>
-      <outputDirectory>kylo-services/lib/app</outputDirectory>
+      <outputDirectory>kylo-services/plugin/app</outputDirectory>
       <fileMode>755</fileMode>
     </file>
 
@@ -723,6 +825,20 @@
     <file>
       <source>
         ${project.parent.parent.basedir}/integrations/spark/spark-interpreter/spark-interpreter-spark-v2/target/kylo-spark-interpreter-spark-v2-${project.version}-jar-with-dependencies.jar
+      </source>
+      <outputDirectory>setup/nifi</outputDirectory>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <source>
+        ${project.parent.parent.basedir}/integrations/spark/spark-multi-exec/spark-multi-exec-spark-v1/target/kylo-spark-multi-exec-spark-v1-${project.version}-jar-with-dependencies.jar
+      </source>
+      <outputDirectory>setup/nifi</outputDirectory>
+      <fileMode>755</fileMode>
+    </file>
+    <file>
+      <source>
+        ${project.parent.parent.basedir}/integrations/spark/spark-multi-exec/spark-multi-exec-spark-v2/target/kylo-spark-multi-exec-spark-v2-${project.version}-jar-with-dependencies.jar
       </source>
       <outputDirectory>setup/nifi</outputDirectory>
       <fileMode>755</fileMode>

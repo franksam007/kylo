@@ -83,7 +83,7 @@ public class JcrAllowedActions extends JcrObject implements AllowedActions {
     public List<AllowableAction> getAvailableActions() {
         try {
             NodeType type = JcrUtil.getNodeType(JcrMetadataAccess.getActiveSession(), JcrAllowableAction.NODE_TYPE);
-            return JcrUtil.getJcrObjects(this.node, type, JcrAllowableAction.class).stream().collect(Collectors.toList());
+            return JcrUtil.getJcrObjects(getNode(), type, JcrAllowableAction.class).stream().collect(Collectors.toList());
         } catch (Exception e) {
             throw new MetadataException("Failed to retrieve the accessible functions", e);
         }
@@ -194,16 +194,13 @@ public class JcrAllowedActions extends JcrObject implements AllowedActions {
                            .collect(Collectors.toSet()));
     }
 
-    /**
-     * validate a user has a given permission(s)
-     *
-     * @param action the action to check
-     * @param more   additional actions to check
-     * @return true if user has the permission(s), false if not
-     */
+    @Override
     public boolean hasPermission(Action action, Action... more) {
-        Set<Action> actions = new HashSet<>(Arrays.asList(more));
-        actions.add(action);
+        return hasPermission(Stream.concat(Stream.of(action), Stream.of(more)).collect(Collectors.toSet()));
+    }
+    
+    @Override
+    public boolean hasPermission(Set<Action> actions) {
         try {
             checkPermission(actions);
         } catch (AccessControlException e) {
@@ -230,9 +227,15 @@ public class JcrAllowedActions extends JcrObject implements AllowedActions {
             }
         }
     }
-
+    
     public void removeAccessControl(Principal owner) {
+        disableAccessControl(owner);
+        JcrUtil.getNodesOfType(getNode(), JcrAllowableAction.NODE_TYPE).forEach(JcrUtil::removeNode);
+    }
+
+    public void disableAccessControl(Principal owner) {
         JcrAccessControlUtil.clearRecursivePermissions(getNode(), JcrAllowableAction.NODE_TYPE);
+        JcrAccessControlUtil.clearPermissions(getNode());
     }
 
     public void setupAccessControl(Principal owner) {
@@ -370,7 +373,7 @@ public class JcrAllowedActions extends JcrObject implements AllowedActions {
             result &= findActionNode(action)
                 .map(node -> {
                     if (enable) {
-                        return JcrAccessControlUtil.addHierarchyPermissions(node, principal, this.node, GRANT_PRIVILEGES);
+                        return JcrAccessControlUtil.addHierarchyPermissions(node, principal, getNode(), GRANT_PRIVILEGES);
                     } else {
                         return JcrAccessControlUtil.removeRecursivePermissions(node, JcrAllowableAction.NODE_TYPE, principal, GRANT_PRIVILEGES);
                     }
